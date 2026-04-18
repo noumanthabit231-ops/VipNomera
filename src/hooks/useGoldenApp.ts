@@ -50,24 +50,27 @@ export const useGoldenApp = () => {
 
   const { data, error } = await supabase
     .from('auth_codes')
-    .select('is_verified, name, subscription, expiry_date, tg_user_id, role') // ДОБАВИЛИ role
+    .select('is_verified, name, role, subscription, expiry_date, tg_user_id') // Тянем всё!
     .ilike('phone', `%${cleanPhone}%`)
     .eq('is_verified', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
     .single();
 
   if (data && !error) {
     const updatedUser = { 
       ...user, 
       full_name: data.name, 
+      role: data.role || 'USER', 
       subscription: data.subscription || 'INACTIVE',
       expiry_date: data.expiry_date,
-      tg_user_id: data.tg_user_id,
-      role: data.role || 'USER' // ТЕПЕРЬ РОЛЬ ПЕРЕДАЕТСЯ
+      tg_user_id: data.tg_user_id
     };
     
-    // ... остальная логика сохранения
+    // Если данные в базе изменились (например, ты через админку продлил кому-то срок),
+    // фронтенд обновится сам в течение 10 секунд
+    if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
+      setUser(updatedUser);
+      localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
+    }
   }
 }, [user]);
 
