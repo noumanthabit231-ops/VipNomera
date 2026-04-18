@@ -221,16 +221,28 @@ export default function App() {
   };
 
   const handleSavePhone = async () => {
-    if (!pn || !pr) return alert('Заполните данные');
-    const payload = { number: pn, price: Number(pr), status: st, labelIds: sl };
-    const { error } = await supabase.from('phones').insert([payload]);
-    if (!error) {
-      setPn(''); setPr(''); setSl([]);
-      await fetchData();
-      return true;
-    }
+  if (!pn || !pr) return alert('Заполните данные');
+  
+  // Убедись, что ключ совпадает с именем колонки в БД (обычно label_ids)
+  const payload = { 
+    number: pn, 
+    price: Number(pr), 
+    status: st, 
+    label_ids: sl  // <--- Поменяй здесь
+  }; 
+  
+  const { error } = await supabase.from('phones').insert([payload]);
+  
+  if (error) {
+    console.error("Ошибка Supabase:", error);
+    alert(`Ошибка: ${error.message}`);
     return false;
-  };
+  }
+
+  setPn(''); setPr(''); setSl([]);
+  await fetchData();
+  return true;
+};
 
   const handleDeletePhone = async (id: string) => {
     if (confirm('Удалить номер?')) {
