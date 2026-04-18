@@ -109,38 +109,46 @@ export default function App() {
       </nav>
 
       {/* Модалка с инфой о номере */}
-      <BottomSheet isOpen={!!selectedPhone} onClose={() => setSelectedPhone(null)} title="О номере">
-  {selectedPhone && (
-    <div className="space-y-8 text-center animate-in fade-in zoom-in duration-300">
-      <div className="bg-gray-50 rounded-[2.5rem] py-10 px-4 border border-gray-100">
-        {/* Адаптивный размер текста: уменьшается на мобилках */}
-        <h3 className="text-3xl sm:text-4xl md:text-5xl font-mono font-bold text-gray-900 tracking-tighter mb-4 italic break-all select-all leading-none">
-          {selectedPhone.number}
-        </h3>
-        <p className="text-3xl font-black text-[#D4AF37] italic">
-          {selectedPhone.price.toLocaleString()} ₸
-        </p>
-        <div className="mt-6 flex justify-center">
-          <span className={cn(
-            "px-5 py-2 rounded-full text-[10px] font-black uppercase border-2",
-            selectedPhone.status === 'IN_STOCK' ? "border-green-100 text-green-600 bg-white" : "border-orange-100 text-orange-600 bg-white"
-          )}>
-            {selectedPhone.status === 'IN_STOCK' ? '• В наличии' : '• Ожидание 24 часа'}
-          </span>
-        </div>
-      </div>
-      
-      <div className="space-y-4">
-        <Button fullWidth size="lg" className="py-6 text-lg shadow-xl" onClick={() => window.open(KASPI_PAY_LINK, '_blank')}>
-          <ExternalLink size={24}/> Купить через Kaspi
-        </Button>
-        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
-          Безопасный платеж через Kaspi Pay
-        </p>
-      </div>
-    </div>
-  )}
-</BottomSheet>
+      {/* Модалка с инфой о номере */}
+      <BottomSheet 
+        isOpen={!!selectedPhone} 
+        onClose={() => setSelectedPhone(null)} 
+        title="О номере"
+      >
+        {selectedPhone && (
+          <div className="space-y-8 text-center animate-in fade-in zoom-in duration-300">
+            <div className="bg-gray-50 rounded-[2.5rem] py-10 px-4 border border-gray-100">
+              {/* text-3xl — база, которая влезет везде, sm:text-5xl — для больших экранов */}
+              <h3 className="text-3xl sm:text-4xl md:text-5xl font-mono font-bold text-gray-900 tracking-tighter mb-4 italic break-all select-all leading-none">
+                {selectedPhone.number}
+              </h3>
+              <p className="text-3xl font-black text-[#D4AF37] italic">
+                {selectedPhone.price.toLocaleString()} ₸
+              </p>
+              <div className="mt-6 flex justify-center">
+                <span className={cn(
+                  "px-5 py-2 rounded-full text-[10px] font-black uppercase border-2",
+                  selectedPhone.status === 'IN_STOCK' ? "border-green-100 text-green-600 bg-white" : "border-orange-100 text-orange-600 bg-white"
+                )}>
+                  {selectedPhone.status === 'IN_STOCK' ? '• В наличии' : '• Ожидание 24 часа'}
+                </span>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <Button 
+                fullWidth 
+                size="lg" 
+                className="py-6 text-lg shadow-xl" 
+                onClick={() => window.open(KASPI_PAY_LINK, '_blank')}
+              >
+                <ExternalLink size={24}/> Купить через Kaspi
+              </Button>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
+                Безопасный платеж через Kaspi Pay
+              </p>
+            </div>
+          </div>
         )}
       </BottomSheet>
     </div>
