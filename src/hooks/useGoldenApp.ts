@@ -99,8 +99,8 @@ export const useGoldenApp = () => {
       ],
       [
         { 
-          text: "💬 Связаться (WhatsApp)", 
-          url: `https://wa.me/${cleanPhone}` 
+          text: "💬 Связаться (Telegram)", 
+          url: `https://t.me/${cleanPhone}` 
         }
       ]
     ]
