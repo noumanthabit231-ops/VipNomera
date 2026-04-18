@@ -40,32 +40,39 @@ export const AuthView = () => {
   };
 
   useEffect(() => {
-    if (step !== 'verify') return;
-    const cleanPhone = phone.replace(/\D/g, '');
-    const interval = setInterval(async () => {
-      const { data } = await supabase
-        .from('auth_codes')
-        .select('is_verified, name, subscription, expiry_date')
-        .eq('phone', cleanPhone)
-        .eq('code', code)
-        .single();
+  if (step !== 'verify') return;
 
-      if (data?.is_verified) {
-        clearInterval(interval);
-        const userData = { 
-          phone: cleanPhone, 
-          full_name: data.name, 
-          role: 'USER', 
-          id: `user_${Date.now()}`,
-          subscription: data.subscription || 'INACTIVE',
-          expiry_date: data.expiry_date
-        };
-        localStorage.setItem('golden_v2_session', JSON.stringify(userData));
-        window.location.reload(); 
-      }
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [step, phone, code]);
+  const cleanPhone = phone.replace(/\D/g, '');
+  const interval = setInterval(async () => {
+    // Теперь запрашиваем ВСЕ поля сразу после подтверждения в боте
+    const { data, error } = await supabase
+      .from('auth_codes')
+      .select('is_verified, name, role, subscription, expiry_date, tg_user_id')
+      .eq('phone', cleanPhone)
+      .eq('code', code)
+      .single();
+
+    if (data?.is_verified) {
+      clearInterval(interval);
+      
+      // Формируем полный объект пользователя сразу!
+      const userData = { 
+        phone: cleanPhone, 
+        full_name: data.name, 
+        role: data.role || 'USER', // Забираем роль из базы
+        subscription: data.subscription || 'INACTIVE',
+        expiry_date: data.expiry_date,
+        tg_user_id: data.tg_user_id,
+        id: `user_${Date.now()}`
+      };
+
+      localStorage.setItem('golden_v2_session', JSON.stringify(userData));
+      window.location.reload(); // Перезагрузка, чтобы App увидел новые данные
+    }
+  }, 2000);
+
+  return () => clearInterval(interval);
+}, [step, phone, code]);
 
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in duration-700">
