@@ -1,25 +1,46 @@
-import React from 'react';
-import { Crown, CheckCircle2, ExternalLink, MessageSquare, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { Crown, CheckCircle2, ExternalLink, MessageSquare, Calendar, Loader2 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { cn } from '../cn';
 
 const KASPI_PAY_LINK = "https://pay.kaspi.kz/pay/nlgccild";
 
-export const SubscriptionView = ({ setView, user }: any) => {
+export const SubscriptionView = ({ setView, user, onNotify }: any) => {
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handlePaidNotification = async () => {
+    if (sent) return;
+    setLoading(true);
+    
+    try {
+      const success = await onNotify();
+      if (success) {
+        setSent(true);
+        alert("Заявка отправлена администратору! Доступ будет активирован после проверки оплаты.");
+      } else {
+        alert("Ошибка при отправке уведомления. Попробуйте еще раз или напишите в поддержку.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Произошла ошибка. Проверьте интернет-соединение.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="pt-10 space-y-8 animate-in fade-in zoom-in duration-500">
-      {/* Шапка */}
       <div className="text-center space-y-3">
         <div className="w-20 h-20 bg-[#D4AF37]/10 rounded-[2.5rem] flex items-center justify-center mx-auto border border-[#D4AF37]/20 shadow-2xl shadow-[#D4AF37]/10">
           <Crown size={40} className="text-[#D4AF37]" />
         </div>
-        <h1 className="text-3xl font-black text-gray-900 uppercase italic tracking-tighter">VIP Доступ</h1>
-        <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Доступ к базе золотых номеров</p>
+        <h1 className="text-3xl font-black text-gray-900 uppercase italic tracking-tighter text-center">VIP Доступ</h1>
+        <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] text-center">Доступ к базе золотых номеров</p>
       </div>
 
-      {/* Карточка тарифа */}
       <Card className="p-8 border-[#D4AF37]/20 relative overflow-hidden bg-white">
-        {/* Декор на фоне */}
         <div className="absolute -right-10 -top-10 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-3xl" />
         
         <div className="space-y-8 relative z-10">
@@ -33,7 +54,7 @@ export const SubscriptionView = ({ setView, user }: any) => {
             </div>
             <div className="text-right">
               <p className="text-4xl font-black text-[#D4AF37] leading-none">5 000 ₸</p>
-              <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">в месяц</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 text-right">в месяц</p>
             </div>
           </div>
 
@@ -66,12 +87,21 @@ export const SubscriptionView = ({ setView, user }: any) => {
             <Button 
               fullWidth 
               variant="outline" 
-              className="py-6 border-gray-100 text-gray-400"
-              onClick={() => {
-                alert("Заявка отправлена администратору. Доступ будет активирован после проверки оплаты.");
-              }}
+              className={cn(
+                "py-6 border-gray-100 transition-all",
+                sent ? "text-green-500 bg-green-50/50 border-green-200" : "text-gray-400"
+              )}
+              onClick={handlePaidNotification}
+              disabled={loading || sent}
             >
-              <MessageSquare size={18} className="mr-2" /> Я оплатил
+              {loading ? (
+                <Loader2 size={18} className="mr-2 animate-spin" />
+              ) : sent ? (
+                <CheckCircle2 size={18} className="mr-2" />
+              ) : (
+                <MessageSquare size={18} className="mr-2" />
+              )}
+              {sent ? "Заявка отправлена" : "Я оплатил"}
             </Button>
           </div>
         </div>
