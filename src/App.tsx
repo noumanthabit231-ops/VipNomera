@@ -19,7 +19,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { supabase } from './lib/supabase';
+
+// ВАЖНО: Проверьте путь импорта. Если файл лежит прямо в src, оставьте ./supabase
+import { supabase } from './supabase';
 
 /** --- Utility --- */
 function cn(...inputs: ClassValue[]) {
@@ -54,8 +56,6 @@ interface UserProfile {
 
 /** --- Local Storage Helpers --- */
 const KEYS = {
-  PHONES: 'golden_v2_phones',
-  LABELS: 'golden_v2_labels',
   USERS: 'golden_v2_users',
   SESSION: 'golden_v2_session'
 };
@@ -74,18 +74,6 @@ const setStorage = <T,>(key: string, data: T) => {
 };
 
 /** --- Constants & Mock Data --- */
-const INITIAL_LABELS: Label[] = [
-  { id: 'l1', text: 'TOP', color: '#D4AF37' },
-  { id: 'l2', text: 'NEW', color: '#3B82F6' },
-  { id: 'l3', text: '777', color: '#EF4444' },
-];
-
-const INITIAL_PHONES: Phone[] = [
-  { id: 'p1', number: '+7 (707) 777 77 77', price: 2500000, status: 'IN_STOCK', labelIds: ['l1', 'l3'] },
-  { id: 'p2', number: '+7 (701) 001 01 01', price: 950000, status: 'IN_STOCK', labelIds: ['l2'] },
-  { id: 'p3', number: '+7 (777) 123 45 67', price: 450000, status: 'ON_ORDER', labelIds: [] },
-];
-
 const INITIAL_ADMIN: UserProfile = {
   id: 'admin-root',
   email: 'admin@gold.kz',
@@ -175,24 +163,26 @@ const BottomSheet = ({ isOpen, onClose, title, children }: any) => (
 export default function App() {
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'subscription'>('catalog');
   
-  // 1. Авторизацию пока оставляем на LocalStorage (докрутим позже)
+  // Авторизация
   const [user, setUser] = useState<UserProfile | null>(() => getStorage(KEYS.SESSION, null));
   const [users, setUsers] = useState<UserProfile[]>(() => getStorage(KEYS.USERS, [INITIAL_ADMIN]));
+  const [authData, setAuthData] = useState({ email: '', password: '', isLogin: true });
 
-  // 2. Номера и метки теперь берутся ТОЛЬКО из Supabase. Инициализируем пустыми массивами.
+  // Данные из Supabase
   const [phones, setPhones] = useState<Phone[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   
+  // Состояния UI
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
 
-  // 3. Загружаем данные из БД при первом рендере
+  // Загрузка данных при старте
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Синхронизация сессии пользователя с LocalStorage (номера и метки отсюда убрали!)
+  // Синхронизация сессии
   useEffect(() => {
     setStorage(KEYS.SESSION, user);
     setStorage(KEYS.USERS, users);
@@ -224,7 +214,7 @@ export default function App() {
     }
 
     if (!result.error) {
-      fetchData(); // Обновляем список из базы
+      fetchData(); 
       return true;
     }
     return false;
@@ -235,7 +225,7 @@ export default function App() {
     if (!error) fetchData();
   };
 
-  // --- ЛОКАЛЬНЫЕ ФУНКЦИИ (Будем переводить на Supabase позже) ---
+  // --- ЛОКАЛЬНЫЕ ФУНКЦИИ ---
   const handleAuth = () => {
     if (authData.isLogin) {
       const found = users.find(u => u.email === authData.email && u.password === authData.password);
@@ -254,19 +244,17 @@ export default function App() {
     if (user?.id === uid) setUser({ ...user, subscription: 'ACTIVE' });
   };
 
-  // ВАЖНО: Старые функции addPhone и addLabel можно удалить из твоего кода, 
-  // так как теперь их логику заменяет handleSavePhone.
-
   // Filtered List
   const filteredPhones = useMemo(() => {
     return phones.filter(p => {
       const matchesSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLabel = activeLabelFilter ? p.labelIds.includes(activeLabelFilter) : true;
+      // Проверка наличия массива labelIds перед фильтрацией (защита от ошибок типизации из БД)
+      const matchesLabel = activeLabelFilter ? (p.labelIds || []).includes(activeLabelFilter) : true;
       return matchesSearch && matchesLabel;
     });
   }, [phones, searchQuery, activeLabelFilter]);
 
-  /** --- Views --- */
+  // Далее идет ваш return () и остальной JSX код...
 
   const Catalog = () => (
     <div className="pb-24 space-y-8">
