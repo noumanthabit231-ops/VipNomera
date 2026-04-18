@@ -92,6 +92,33 @@ export const useGoldenApp = () => {
     });
   }, [phones, searchQuery, activeLabelFilter]);
 
+  const TG_BOT_TOKEN = "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
+const TG_CHAT_ID = "7620660514";
+
+const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP") => {
+  const message = `
+🔔 *НОВАЯ ЗАЯВКА НА ОПЛАТУ*
+👤 Пользователь: ${userData?.email}
+📦 Услуга: ${detail}
+💰 Статус: Ожидает подтверждения
+⏰ Время: ${new Date().toLocaleString('ru-RU')}
+  `;
+
+  try {
+    await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TG_CHAT_ID,
+        text: message,
+        parse_mode: 'Markdown',
+      }),
+    });
+  } catch (err) {
+    console.error("Ошибка отправки в TG:", err);
+  }
+};
+
   return {
     view, setView, user, setUser, users, setUsers, phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones, fetchData, handleSavePhone, 
