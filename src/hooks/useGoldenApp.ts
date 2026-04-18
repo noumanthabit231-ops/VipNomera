@@ -122,47 +122,60 @@ export const useGoldenApp = () => {
 
   // Уведомление в Telegram о покупке КОНКРЕТНОГО НОМЕРА
   const sendPurchaseNotification = async (userData: any, phoneData: any) => {
-    const cleanPhone = userData?.phone?.replace(/\D/g, '');
-    
-    const message = `
+  const cleanPhone = userData?.phone?.replace(/\D/g, '');
+  const tgId = userData?.tg_user_id;
+
+  // Формируем текст: если есть tgId, делаем имя кликабельным (mention)
+  const clientMention = tgId 
+    ? `[${userData?.full_name || 'Клиент'}](tg://user?id=${tgId})`
+    : `*${userData?.full_name || 'Клиент'}*`;
+
+  const message = `
 💰 *ЗАЯВКА НА ПОКУПКУ НОМЕРА*
 ━━━━━━━━━━━━━━━━━━
-👤 *Клиент:* ${userData?.full_name || 'Не указано'}
-📱 *Его связь:* +${cleanPhone}
+👤 *Клиент:* ${clientMention}
+📱 *Связь:* +${cleanPhone}
 💎 *НОМЕР:* \`${phoneData.number}\`
 💵 *ЦЕНА:* ${phoneData.price.toLocaleString()} ₸
 ━━━━━━━━━━━━━━━━━━
 ⏰ *Время:* ${new Date().toLocaleString('ru-RU')}
-    `;
+  `;
 
-    const keyboard = {
-      inline_keyboard: [
-        [
-          { 
-            text: "🔵 Связаться в Telegram", 
-            url: userData?.tg_user_id ? `tg://user?id=${userData.tg_user_id}` : `https://t.me/+${cleanPhone}`
-          }
-        ]
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { 
+          text: "🔵 Написать в Telegram", 
+          // Пробуем сначала через ID, если нет — через прямую ссылку по номеру
+          url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}`
+        }
+      ],
+      [
+        { 
+          text: "🟢 Написать в WhatsApp", 
+          url: `https://wa.me/${cleanPhone}`
+        }
       ]
-    };
-
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: TG_CHAT_ID,
-          text: message,
-          parse_mode: 'Markdown',
-          reply_markup: keyboard
-        }),
-      });
-      return res.ok;
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
+    ]
   };
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TG_CHAT_ID,
+        text: message,
+        parse_mode: 'Markdown', // Оставляем обычный Markdown
+        reply_markup: keyboard
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("Ошибка уведомления о покупке:", err);
+    return false;
+  }
+};
 
   // Админка: Добавить номер
   const handleSavePhone = async () => {
