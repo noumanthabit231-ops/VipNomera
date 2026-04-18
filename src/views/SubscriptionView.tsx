@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crown, CheckCircle2, ExternalLink, MessageSquare } from 'lucide-react';
+import { Crown, CheckCircle2, ExternalLink, MessageSquare, Calendar } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 
@@ -14,7 +14,7 @@ export const SubscriptionView = ({ setView, user }: any) => {
           <Crown size={40} className="text-[#D4AF37]" />
         </div>
         <h1 className="text-3xl font-black text-gray-900 uppercase italic tracking-tighter">VIP Доступ</h1>
-        <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Разблокируйте эксклюзивные номера</p>
+        <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em]">Доступ к базе золотых номеров</p>
       </div>
 
       {/* Карточка тарифа */}
@@ -25,21 +25,24 @@ export const SubscriptionView = ({ setView, user }: any) => {
         <div className="space-y-8 relative z-10">
           <div className="flex justify-between items-end">
             <div>
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Тариф</p>
-              <h3 className="text-3xl font-black text-gray-900 italic">Навсегда</h3>
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar size={12} className="text-[#D4AF37]" />
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Период</p>
+              </div>
+              <h3 className="text-3xl font-black text-gray-900 italic">30 Дней</h3>
             </div>
             <div className="text-right">
               <p className="text-4xl font-black text-[#D4AF37] leading-none">5 000 ₸</p>
-              <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">единоразово</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">в месяц</p>
             </div>
           </div>
 
           <div className="space-y-4 py-6 border-y border-gray-50">
             {[
-              "Доступ ко всем «Золотым» номерам",
-              "Прямая связь с владельцем",
-              "Бронирование номера на 24 часа",
-              "Приоритетная поддержка"
+              "Полный доступ к каталогу номеров",
+              "Просмотр скрытых контактов",
+              "Уведомления о новых лотах",
+              "Персональный менеджер"
             ].map((text, i) => (
               <div key={i} className="flex items-center gap-3 text-sm font-bold text-gray-700">
                 <div className="bg-green-50 p-1 rounded-full">
@@ -57,7 +60,7 @@ export const SubscriptionView = ({ setView, user }: any) => {
               className="py-6 text-lg shadow-xl shadow-[#D4AF37]/20" 
               onClick={() => window.open(KASPI_PAY_LINK, '_blank')}
             >
-              <ExternalLink size={20} className="mr-2" /> Оплатить через Kaspi
+              <ExternalLink size={20} className="mr-2" /> Оплатить подписку
             </Button>
             
             <Button 
@@ -65,8 +68,7 @@ export const SubscriptionView = ({ setView, user }: any) => {
               variant="outline" 
               className="py-6 border-gray-100 text-gray-400"
               onClick={() => {
-                alert("Уведомление отправлено! Администратор проверит оплату в течение 15 минут.");
-                // Тут можно вызвать sendPaymentNotification из твоего хука
+                alert("Заявка отправлена администратору. Доступ будет активирован после проверки оплаты.");
               }}
             >
               <MessageSquare size={18} className="mr-2" /> Я оплатил
@@ -77,16 +79,15 @@ export const SubscriptionView = ({ setView, user }: any) => {
 
       <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
         <p className="text-[10px] text-gray-400 text-center font-bold uppercase leading-relaxed px-4">
-          После оплаты ваш аккаунт будет активирован вручную. Если возникли вопросы, пишите в поддержку.
+          Подписка активируется на 30 календарных дней с момента подтверждения платежа.
         </p>
       </div>
 
-      {/* Кнопка назад в кабинет, если нужно */}
       <button 
         onClick={() => setView('profile')}
         className="block mx-auto text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] hover:text-gray-900 transition-colors"
       >
-        Вернуться в кабинет
+        Вернуться в профиль
       </button>
     </div>
   );
