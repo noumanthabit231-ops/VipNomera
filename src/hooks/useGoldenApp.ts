@@ -91,22 +91,21 @@ export const useGoldenApp = () => {
   `;
 
   const keyboard = {
-    inline_keyboard: [
-      [
-        { 
-          text: "✅ Подтвердить оплату", 
-          callback_data: `approve_pay:${cleanPhone}` 
-        }
-      ],
-      [
-        { 
-          text: "🔵 Написать в Telegram", 
-          // Если есть ID, ведем по нему, если нет — пробуем поиск (но ID надежнее)
-          url: tgId ? `tg://user?id=${tgId}` : `https://t.me/search?q=${cleanPhone}`
-        }
-      ]
+  inline_keyboard: [
+    [
+      { text: "✅ Подтвердить оплату", callback_data: `approve_pay:${cleanPhone}` }
+    ],
+    [
+      { 
+        text: "🔵 Написать в Telegram", 
+        // Если tg_user_id есть — пишем по ID, если нет — ищем по номеру
+        url: userData?.tg_user_id 
+          ? `tg://user?id=${userData.tg_user_id}` 
+          : `https://t.me/+${cleanPhone}` 
+      }
     ]
-  };
+  ]
+};
 
   try {
     const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
