@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { supabase } from './lib/supabase';
 
 /** --- Utility --- */
 function cn(...inputs: ClassValue[]) {
@@ -177,6 +178,43 @@ export default function App() {
   const [users, setUsers] = useState<UserProfile[]>(() => getStorage(KEYS.USERS, [INITIAL_ADMIN]));
   const [phones, setPhones] = useState<Phone[]>(() => getStorage(KEYS.PHONES, INITIAL_PHONES));
   const [labels, setLabels] = useState<Label[]>(() => getStorage(KEYS.LABELS, INITIAL_LABELS));
+  const [phones, setPhones] = useState([]);
+  const [labels, setLabels] = useState([]);
+  const fetchData = async () => {
+  try {
+    const [phonesRes, labelsRes] = await Promise.all([
+      supabase.from('phones').select('*').order('created_at', { ascending: false }),
+      supabase.from('labels').select('*').order('text')
+    ]);
+    
+    if (phonesRes.data) setPhones(phonesRes.data);
+    if (labelsRes.data) setLabels(labelsRes.data);
+  } catch (error) {
+    console.error("Ошибка загрузки:", error);
+  }
+};
+    const handleSavePhone = async (payload: any) => {
+  const { id, ...data } = payload;
+  let result;
+  
+  if (id) {
+    // Редактирование
+    result = await supabase.from('phones').update(data).eq('id', id);
+  } else {
+    // Создание нового
+    result = await supabase.from('phones').insert([data]);
+  }
+
+  if (!result.error) {
+    fetchData(); // Рефреш списка
+    return true;
+  }
+  return false;
+};
+    const handleDeletePhone = async (id: string) => {
+  const { error } = await supabase.from('phones').delete().eq('id', id);
+  if (!error) fetchData();
+};
   
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
