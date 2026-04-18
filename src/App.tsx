@@ -386,35 +386,64 @@ export default function App() {
                     <option value="IN_STOCK">Immediate Stock</option>
                     <option value="ON_ORDER">On-Demand Order</option>
                   </select>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {labels.map(l => (
-                      <button 
-                        key={l.id} 
-                        onClick={() => setSl(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])}
-                        className={cn("px-3 py-1.5 rounded-full text-[9px] font-black uppercase border transition-all", sl.includes(l.id) ? "border-white text-white" : "border-white/10 text-gray-600")}
-                        style={sl.includes(l.id) ? { backgroundColor: l.color } : {}}
-                      >
-                        {l.text}
-                      </button>
-                    ))}
-                  </div>
-                  <Button fullWidth className="mt-4" onClick={() => { addPhone(pn, Number(pr), st, sl); setPn(''); setPr(''); setSl([]); }}><Plus size={16}/> Register Asset</Button>
-                </div>
-              </Card>
+                  {/* Блок с кнопками меток и кнопкой добавления */}
+<div className="flex flex-wrap gap-2 pt-2">
+  {labels.map(l => (
+    <button 
+      key={l.id} 
+      onClick={() => setSl(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])}
+      className={cn(
+        "px-3 py-1.5 rounded-full text-[9px] font-black uppercase border transition-all", 
+        sl.includes(l.id) ? "border-white text-white" : "border-white/10 text-gray-600"
+      )}
+      style={sl.includes(l.id) ? { backgroundColor: l.color } : {}}
+    >
+      {l.text}
+    </button>
+  ))}
+</div>
 
-              <div className="space-y-3">
-                {phones.map(p => (
-                  <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <div className="flex flex-col">
-                      <span className="font-mono text-sm text-white font-black">{p.number}</span>
-                      <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{p.price.toLocaleString()} ₸</span>
-                    </div>
-                    <button onClick={() => setPhones(phones.filter(x => x.id !== p.id))} className="p-2 text-red-500/30 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+<Button 
+  fullWidth 
+  className="mt-4" 
+  onClick={async () => { 
+    // Заменяем addPhone на handleSavePhone
+    const success = await handleSavePhone({ 
+      number: pn, 
+      price: Number(pr), 
+      status: st, 
+      labelIds: sl 
+    }); 
+    if (success) {
+      setPn(''); 
+      setPr(''); 
+      setSl([]); 
+    }
+  }}
+>
+  <Plus size={16}/> Добавить номер в базу
+</Button>
+
+{/* Список номеров ниже */}
+<div className="space-y-3 mt-6">
+  {phones.map(p => (
+    <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+      <div className="flex flex-col">
+        <span className="font-mono text-sm text-white font-black">{p.number}</span>
+        <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-widest">
+          {p.price.toLocaleString()} ₸
+        </span>
+      </div>
+      {/* Заменяем фильтр массива на вызов handleDeletePhone */}
+      <button 
+        onClick={() => handleDeletePhone(p.id)} 
+        className="p-2 text-red-500/30 hover:text-red-500 transition-colors"
+      >
+        <Trash2 size={16}/>
+      </button>
+    </div>
+  ))}
+</div>
 
           {tab === 'labels' && (
             <div className="space-y-6">
