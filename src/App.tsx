@@ -353,12 +353,13 @@ export default function App() {
         </div>
 
         <div className="px-2 space-y-6">
+          {/* ВКЛАДКА: ЗАЯВКИ */}
           {tab === 'orders' && (
             <div className="space-y-4">
-              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-4 px-1">Subscription Requests</h2>
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-4 px-1">Запросы на подписку</h2>
               {users.filter(u => u.subscription === 'PENDING').length === 0 && (
                 <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10 text-gray-600 text-sm">
-                  Zero pending requests
+                  Нет активных запросов
                 </div>
               )}
               {users.filter(u => u.subscription === 'PENDING').map(u => (
@@ -366,15 +367,70 @@ export default function App() {
                   <div>
                     <p className="font-bold text-sm">{u.email}</p>
                     <p className="text-[10px] text-yellow-500 font-black uppercase tracking-widest flex items-center gap-1 mt-1">
-                      <Zap size={10}/> Awaiting Approval
+                      <Zap size={10}/> Ожидает подтверждения
                     </p>
                   </div>
-                  <Button variant="primary" size="sm" onClick={() => approveUser(u.id)}>Approve</Button>
+                  <Button variant="primary" size="sm" onClick={() => approveUser(u.id)}>Одобрить</Button>
                 </Card>
               ))}
             </div>
           )}
 
+          {/* ВКЛАДКА: НОМЕРА */}
+          {tab === 'phones' && (
+            <div className="space-y-6">
+              <Card className="border-[#D4AF37]/20 bg-[#151515]">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Регистрация номера</h3>
+                <div className="space-y-4">
+                  <input placeholder="+7 (___) ___ __ __" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-[#D4AF37]/50" value={pn} onChange={e => setPn(e.target.value)} />
+                  <input type="number" placeholder="Цена (₸)" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-[#D4AF37]/50" value={pr} onChange={e => setPr(e.target.value)} />
+                  <select className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm appearance-none outline-none focus:border-[#D4AF37]/50" value={st} onChange={e => setSt(e.target.value as any)}>
+                    <option value="IN_STOCK">В наличии</option>
+                    <option value="ON_ORDER">На заказ (24ч)</option>
+                  </select>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {labels.map(l => (
+                      <button 
+                        key={l.id} 
+                        onClick={() => setSl(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-[9px] font-black uppercase border transition-all", 
+                          sl.includes(l.id) ? "border-white text-white" : "border-white/10 text-gray-600"
+                        )}
+                        style={sl.includes(l.id) ? { backgroundColor: `${l.color}20`, borderColor: sl.includes(l.id) ? l.color : '' } : {}}
+                      >
+                        {l.text}
+                      </button>
+                    ))}
+                  </div>
+                  <Button 
+                    fullWidth 
+                    className="mt-4" 
+                    onClick={async () => { 
+                      const success = await handleSavePhone({ number: pn, price: Number(pr), status: st, labelIds: sl }); 
+                      if (success) { setPn(''); setPr(''); setSl([]); }
+                    }}
+                  >
+                    <Plus size={16}/> Опубликовать лот
+                  </Button>
+                </div>
+              </Card>
+
+              <div className="space-y-3">
+                {phones.map(p => (
+                  <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="flex flex-col">
+                      <span className="font-mono text-sm text-white font-black">{p.number}</span>
+                      <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-widest">{p.price.toLocaleString()} ₸</span>
+                    </div>
+                    <button onClick={() => handleDeletePhone(p.id)} className="p-2 text-red-500/30 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ВКЛАДКА: МЕТКИ */}
           {tab === 'labels' && (
             <div className="space-y-6">
               <Card className="border-[#D4AF37]/20 bg-[#151515]">
@@ -434,35 +490,17 @@ export default function App() {
           >
             {view === 'catalog' && <Catalog />}
             {view === 'admin' && <AdminPanel />}
-            {/* ... здесь твои остальные вьюхи (auth, profile, subscription) ... */}
+            {/* ... здесь остальные вьюхи (auth, profile, subscription) ... */}
           </motion.div>
         </AnimatePresence>
       </main>
 
-      <BottomSheet isOpen={!!selectedPhone} onClose={() => setSelectedPhone(null)} title="Информация о номере">
-        {/* Твой код модалки с кнопкой Kaspi */}
+      <BottomSheet isOpen={!!selectedPhone} onClose={() => setSelectedPhone(null)} title="Оформление заказа">
+         {/* Код модалки с кнопкой Kaspi и инструкцией */}
       </BottomSheet>
     </div>
   );
 }
-
-                  <Button 
-                    fullWidth 
-                    className="mt-4" 
-                    onClick={async () => { 
-                      const success = await handleSavePhone({ 
-                        number: pn, 
-                        price: Number(pr), 
-                        status: st, 
-                        labelIds: sl 
-                      }); 
-                      if (success) { setPn(''); setPr(''); setSl([]); }
-                    }}
-                  >
-                    <Plus size={16}/> Опубликовать лот
-                  </Button>
-                </div>
-              </Card>
 
               <div className="space-y-3">
                 {phones.map(p => (
