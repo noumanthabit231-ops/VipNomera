@@ -386,19 +386,33 @@ export default function App() {
                     <option value="IN_STOCK">Immediate Stock</option>
                     <option value="ON_ORDER">On-Demand Order</option>
                   </select>
-                  {/* Блок с кнопками меток и кнопкой добавления */}
-            {/* Блок выбора меток и кнопка добавления */}
-              {tab === 'phones' && (
+                  {tab === 'phones' && (
             <div className="space-y-6">
               <Card className="border-[#D4AF37]/20 bg-[#151515]">
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Добавление номера</h3>
                 <div className="space-y-4">
-                  <input placeholder="+7 (___) ___ __ __" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" value={pn} onChange={e => setPn(e.target.value)} />
-                  <input type="number" placeholder="Цена (₸)" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" value={pr} onChange={e => setPr(e.target.value)} />
-                  <select className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm appearance-none" value={st} onChange={e => setSt(e.target.value as any)}>
+                  <input 
+                    placeholder="+7 (___) ___ __ __" 
+                    className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" 
+                    value={pn} 
+                    onChange={e => setPn(e.target.value)} 
+                  />
+                  <input 
+                    type="number" 
+                    placeholder="Цена (₸)" 
+                    className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" 
+                    value={pr} 
+                    onChange={e => setPr(e.target.value)} 
+                  />
+                  <select 
+                    className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm appearance-none" 
+                    value={st} 
+                    onChange={e => setSt(e.target.value as any)}
+                  >
                     <option value="IN_STOCK">В наличии</option>
                     <option value="ON_ORDER">На заказ</option>
                   </select>
+                  
                   <div className="flex flex-wrap gap-2 pt-2">
                     {labels.map(l => (
                       <button 
@@ -414,11 +428,17 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+
                   <Button 
                     fullWidth 
                     className="mt-4" 
                     onClick={async () => { 
-                      const success = await handleSavePhone({ number: pn, price: Number(pr), status: st, labelIds: sl }); 
+                      const success = await handleSavePhone({ 
+                        number: pn, 
+                        price: Number(pr), 
+                        status: st, 
+                        labelIds: sl 
+                      }); 
                       if (success) { setPn(''); setPr(''); setSl([]); }
                     }}
                   >
@@ -432,7 +452,9 @@ export default function App() {
                   <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
                     <div className="flex flex-col">
                       <span className="font-mono text-sm text-white font-black">{p.number}</span>
-                      <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-widest">{p.price.toLocaleString()} ₸</span>
+                      <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-widest">
+                        {p.price.toLocaleString()} ₸
+                      </span>
                     </div>
                     <button 
                       onClick={() => handleDeletePhone(p.id)} 
