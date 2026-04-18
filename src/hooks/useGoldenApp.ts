@@ -77,31 +77,52 @@ export const useGoldenApp = () => {
 
   // Уведомление в Telegram об оплате
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
-    const message = `
+  const cleanPhone = userData?.phone?.replace(/\D/g, '');
+  
+  const message = `
 🔔 *НОВАЯ ЗАЯВКА НА ОПЛАТУ*
 👤 Клиент: ${userData?.full_name || 'Не указано'}
-📱 Номер: +${userData?.phone?.replace(/\D/g, '') || 'Не указано'}
+📱 Номер: +${cleanPhone || 'Не указано'}
 📦 Услуга: ${detail}
 💰 Статус: Ожидает подтверждения
 ⏰ Время: ${new Date().toLocaleString('ru-RU')}
-    `;
+  `;
 
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: TG_CHAT_ID,
-          text: message,
-          parse_mode: 'Markdown',
-        }),
-      });
-      return res.ok;
-    } catch (err) {
-      console.error("Ошибка уведомления в TG:", err);
-      return false;
-    }
+  // Формируем кнопки
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { 
+          text: "✅ Подтвердить оплату", 
+          callback_data: `approve_pay:${cleanPhone}` // Передаем номер в данных кнопки
+        }
+      ],
+      [
+        { 
+          text: "💬 Связаться (WhatsApp)", 
+          url: `https://wa.me/${cleanPhone}` 
+        }
+      ]
+    ]
   };
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TG_CHAT_ID,
+        text: message,
+        parse_mode: 'Markdown',
+        reply_markup: keyboard // Добавляем кнопки в запрос
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("TG Error:", err);
+    return false;
+  }
+};
 
   // Админка: Добавить номер
   const handleSavePhone = async () => {
