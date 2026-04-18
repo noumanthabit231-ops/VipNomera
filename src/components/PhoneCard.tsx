@@ -17,9 +17,12 @@ export function PhoneCard({ phone, labels, onClick }: PhoneCardProps) {
     >
       {/* Метки (Labels) */}
       <div className="flex flex-wrap gap-2 mb-4 min-h-[24px]">
-        {phone.labelIds.map(labelId => {
-          const label = labels.find(l => l.id === labelId);
-          return label ? (
+        {(phone.label_ids || []).map(lid => {
+  const label = labels.find(l => l.id === lid);
+  return label ? (
+    <span key={lid} style={{ color: label.color }}>{label.text}</span>
+  ) : null;
+})}
             <span 
               key={labelId} 
               className="text-[9px] uppercase tracking-widest px-2 py-0.5 border text-[#E8D9A8]"
