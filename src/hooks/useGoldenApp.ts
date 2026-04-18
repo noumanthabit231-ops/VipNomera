@@ -5,21 +5,21 @@ import { Phone, Label, UserProfile } from '../types';
 const KEYS = { SESSION: 'golden_v2_session' };
 
 export const useGoldenApp = () => {
-  // --- NAVIGATION & AUTH STATE ---
+  // --- СОСТОЯНИЕ НАВИГАЦИИ И ПОЛЬЗОВАТЕЛЯ ---
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'subscription'>('catalog');
   const [user, setUser] = useState<UserProfile | null>(() => {
     const data = localStorage.getItem(KEYS.SESSION);
     return data ? JSON.parse(data) : null;
   });
 
-  // --- DATA STATE ---
+  // --- ДАННЫЕ КАТАЛОГА ---
   const [phones, setPhones] = useState<Phone[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
 
-  // --- ADMIN FORM STATE ---
+  // --- СОСТОЯНИЕ АДМИН-ПАНЕЛИ ---
   const [pn, setPn] = useState('');
   const [pr, setPr] = useState('');
   const [st, setSt] = useState<'IN_STOCK' | 'ON_ORDER'>('IN_STOCK');
@@ -27,13 +27,13 @@ export const useGoldenApp = () => {
   const [lt, setLt] = useState('');
   const [lc, setLc] = useState('#D4AF37');
 
-  // --- TELEGRAM CONFIG ---
+  // --- КОНФИГ ТЕЛЕГРАМА ---
   const TG_BOT_TOKEN = "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
   const TG_CHAT_ID = "7620660514";
 
-  // --- METHODS ---
+  // --- МЕТОДЫ ---
 
-  // Загрузка каталога
+  // Загрузка каталога (номера и теги)
   const fetchData = useCallback(async () => {
     const [pRes, lRes] = await Promise.all([
       supabase.from('phones').select('*').order('created_at', { ascending: false }),
@@ -43,15 +43,20 @@ export const useGoldenApp = () => {
     if (lRes.data) setLabels(lRes.data);
   }, []);
 
-  // Обновление данных текущего пользователя из БД (проверка подписки)
+  // Обновление данных юзера (Проверка подписки) — ИСПРАВЛЕНО
   const refreshUserData = useCallback(async () => {
     if (!user?.phone) return;
     
+    // Очищаем номер от плюса и пробелов для корректного поиска
+    const cleanPhone = user.phone.replace(/\D/g, '');
+
     const { data, error } = await supabase
-      .from('auth_codes') // или твоя таблица пользователей, если ты их туда переносишь
+      .from('auth_codes')
       .select('is_verified, name, subscription, expiry_date')
-      .eq('phone', user.phone)
+      .ilike('phone', `%${cleanPhone}%`) // Более гибкий поиск
       .eq('is_verified', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single();
 
     if (data && !error) {
@@ -61,17 +66,21 @@ export const useGoldenApp = () => {
         subscription: data.subscription || 'INACTIVE',
         expiry_date: data.expiry_date
       };
-      setUser(updatedUser);
-      localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
+      
+      // Обновляем стейт только если данные реально изменились
+      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
+        setUser(updatedUser);
+        localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
+      }
     }
   }, [user]);
 
-  // Уведомление в Telegram
+  // Уведомление в Telegram об оплате
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
     const message = `
 🔔 *НОВАЯ ЗАЯВКА НА ОПЛАТУ*
 👤 Клиент: ${userData?.full_name || 'Не указано'}
-📱 Номер: +${userData?.phone || 'Не указано'}
+📱 Номер: +${userData?.phone?.replace(/\D/g, '') || 'Не указано'}
 📦 Услуга: ${detail}
 💰 Статус: Ожидает подтверждения
 ⏰ Время: ${new Date().toLocaleString('ru-RU')}
@@ -89,12 +98,12 @@ export const useGoldenApp = () => {
       });
       return res.ok;
     } catch (err) {
-      console.error("Ошибка отправки в TG:", err);
+      console.error("Ошибка уведомления в TG:", err);
       return false;
     }
   };
 
-  // Админка: сохранение номера
+  // Админка: Добавить номер
   const handleSavePhone = async () => {
     if (!pn || !pr) return alert('Заполните данные');
     const payload = { number: pn, price: Number(pr), status: st, label_ids: sl };
@@ -107,21 +116,21 @@ export const useGoldenApp = () => {
     return false;
   };
 
-  // Админка: удаление номера
+  // Админка: Удалить номер
   const handleDeletePhone = async (id: string) => {
-    if (confirm('Удалить номер?')) {
+    if (confirm('Удалить этот номер из базы?')) {
       const { error } = await supabase.from('phones').delete().eq('id', id);
       if (!error) fetchData();
     }
   };
 
-  // --- EFFECTS ---
+  // --- ЭФФЕКТЫ ---
 
   useEffect(() => { 
     fetchData(); 
   }, [fetchData]);
 
-  // Polling для обновления статуса пользователя (раз в 10 секунд)
+  // Авто-обновление статуса каждые 10 секунд (Polling)
   useEffect(() => {
     if (user && view !== 'auth') {
       const interval = setInterval(refreshUserData, 10000);
@@ -129,7 +138,7 @@ export const useGoldenApp = () => {
     }
   }, [user, view, refreshUserData]);
 
-  // Синхронизация сессии
+  // Синхронизация сессии с LocalStorage
   useEffect(() => {
     if (user) {
       localStorage.setItem(KEYS.SESSION, JSON.stringify(user));
@@ -138,7 +147,7 @@ export const useGoldenApp = () => {
     }
   }, [user]);
 
-  // Фильтрация номеров
+  // Фильтрация каталога (Поиск + Теги)
   const filteredPhones = useMemo(() => {
     return phones.filter(p => {
       const matchesSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
@@ -148,19 +157,19 @@ export const useGoldenApp = () => {
   }, [phones, searchQuery, activeLabelFilter]);
 
   return {
-    // Auth & Navigation
+    // Навигация и Юзер
     view, setView, user, setUser, 
     
-    // Catalog
+    // Данные
     phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones,
     selectedPhone, setSelectedPhone,
     
-    // Actions
+    // Действия
     fetchData, refreshUserData, handleSavePhone, 
     handleDeletePhone, sendPaymentNotification,
     
-    // Admin States
+    // Формы админа
     pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc
   };
 };
