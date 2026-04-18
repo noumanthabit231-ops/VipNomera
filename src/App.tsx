@@ -375,59 +375,76 @@ export default function App() {
             </div>
           )}
 
-          {tab === 'phones' && (
+          {tab === 'labels' && (
             <div className="space-y-6">
               <Card className="border-[#D4AF37]/20 bg-[#151515]">
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Register Number</h3>
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Создание меток</h3>
                 <div className="space-y-4">
-                  <input placeholder="+7 (___) ___ __ __" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" value={pn} onChange={e => setPn(e.target.value)} />
-                  <input type="number" placeholder="Price (₸)" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" value={pr} onChange={e => setPr(e.target.value)} />
-                  <select className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm appearance-none" value={st} onChange={e => setSt(e.target.value as any)}>
-                    <option value="IN_STOCK">Immediate Stock</option>
-                    <option value="ON_ORDER">On-Demand Order</option>
-                  </select>
-                  {tab === 'phones' && (
-            <div className="space-y-6">
-              <Card className="border-[#D4AF37]/20 bg-[#151515]">
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Добавление номера</h3>
-                <div className="space-y-4">
-                  <input 
-                    placeholder="+7 (___) ___ __ __" 
-                    className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" 
-                    value={pn} 
-                    onChange={e => setPn(e.target.value)} 
-                  />
-                  <input 
-                    type="number" 
-                    placeholder="Цена (₸)" 
-                    className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" 
-                    value={pr} 
-                    onChange={e => setPr(e.target.value)} 
-                  />
-                  <select 
-                    className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm appearance-none" 
-                    value={st} 
-                    onChange={e => setSt(e.target.value as any)}
-                  >
-                    <option value="IN_STOCK">В наличии</option>
-                    <option value="ON_ORDER">На заказ</option>
-                  </select>
-                  
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {labels.map(l => (
-                      <button 
-                        key={l.id} 
-                        onClick={() => setSl(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])}
-                        className={cn(
-                          "px-3 py-1.5 rounded-full text-[9px] font-black uppercase border transition-all", 
-                          sl.includes(l.id) ? "border-white text-white" : "border-white/10 text-gray-600"
-                        )}
-                        style={sl.includes(l.id) ? { backgroundColor: l.color } : {}}
-                      >
-                        {l.text}
-                      </button>
-                    ))}
+                  <input placeholder="Название (напр. VIP)" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm uppercase font-black" value={lt} onChange={e => setLt(e.target.value.toUpperCase())} />
+                  <div className="flex items-center gap-4 bg-black/30 p-4 rounded-2xl border border-white/5">
+                    <input type="color" className="w-12 h-12 bg-transparent border-none cursor-pointer p-0" value={lc} onChange={e => setLc(e.target.value)} />
+                    <div className="flex-1 text-[10px] font-black uppercase tracking-widest text-center py-3 rounded-xl" style={{ backgroundColor: `${lc}20`, color: lc, border: `1px solid ${lc}40` }}>
+                      Предпросмотр цвета
+                    </div>
                   </div>
+                  <Button fullWidth onClick={async () => { 
+                    await supabase.from('labels').insert([{ text: lt, color: lc }]);
+                    setLt('');
+                    fetchData();
+                  }}><Plus size={16}/> Создать метку</Button>
+                </div>
+              </Card>
+
+              <div className="grid grid-cols-2 gap-3">
+                {labels.map(l => (
+                  <div key={l.id} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg" style={{ backgroundColor: `${l.color}20`, color: l.color }}>{l.text}</span>
+                    <button onClick={async () => {
+                      await supabase.from('labels').delete().eq('id', l.id);
+                      fetchData();
+                    }} className="text-red-500/30 hover:text-red-500 p-1"><X size={14}/></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  /** --- Основной рендер приложения --- */
+  return (
+    <div className="min-h-screen bg-[#050505] text-[#E0E0E0] font-sans selection:bg-[#D4AF37] selection:text-black pb-32">
+      <Navigation 
+        user={user} 
+        activeView={view} 
+        onNavigate={setView} 
+        onLogout={() => { setUser(null); setView('catalog'); }} 
+      />
+
+      <main className="max-w-xl mx-auto px-4 mt-4 min-h-[70vh]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {view === 'catalog' && <Catalog />}
+            {view === 'admin' && <AdminPanel />}
+            {/* ... здесь твои остальные вьюхи (auth, profile, subscription) ... */}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      <BottomSheet isOpen={!!selectedPhone} onClose={() => setSelectedPhone(null)} title="Информация о номере">
+        {/* Твой код модалки с кнопкой Kaspi */}
+      </BottomSheet>
+    </div>
+  );
+}
 
                   <Button 
                     fullWidth 
