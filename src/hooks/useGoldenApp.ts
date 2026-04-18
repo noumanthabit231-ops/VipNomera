@@ -78,7 +78,9 @@ export const useGoldenApp = () => {
   // Уведомление в Telegram об оплате
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
   const cleanPhone = userData?.phone?.replace(/\D/g, '');
-  
+  // Берем ID телеграма, который мы сохранили в сессии при входе
+  const tgId = userData?.tg_user_id; 
+
   const message = `
 🔔 *НОВАЯ ЗАЯВКА НА ОПЛАТУ*
 👤 Клиент: ${userData?.full_name || 'Не указано'}
@@ -88,19 +90,19 @@ export const useGoldenApp = () => {
 ⏰ Время: ${new Date().toLocaleString('ru-RU')}
   `;
 
-  // Формируем кнопки
   const keyboard = {
     inline_keyboard: [
       [
         { 
           text: "✅ Подтвердить оплату", 
-          callback_data: `approve_pay:${cleanPhone}` // Передаем номер в данных кнопки
+          callback_data: `approve_pay:${cleanPhone}` 
         }
       ],
       [
         { 
-          text: "💬 Связаться (Telegram)", 
-          url: `https://t.me/${cleanPhone}` 
+          text: "🔵 Написать в Telegram", 
+          // Если есть ID, ведем по нему, если нет — пробуем поиск (но ID надежнее)
+          url: tgId ? `tg://user?id=${tgId}` : `https://t.me/search?q=${cleanPhone}`
         }
       ]
     ]
@@ -114,7 +116,7 @@ export const useGoldenApp = () => {
         chat_id: TG_CHAT_ID,
         text: message,
         parse_mode: 'Markdown',
-        reply_markup: keyboard // Добавляем кнопки в запрос
+        reply_markup: keyboard
       }),
     });
     return res.ok;
