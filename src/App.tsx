@@ -4,7 +4,8 @@ import {
   User as UserIcon, 
   ExternalLink,
   Crown,
-  Lock
+  Lock,
+  ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -31,7 +32,7 @@ export default function App() {
     ...state 
   } = useGoldenApp() as any;
 
-  // Железная проверка доступа
+  // Проверка прав доступа
   const hasAccess = useMemo(() => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
@@ -53,35 +54,24 @@ export default function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {/* ГЕЙТ 1: Если нет пользователя — показываем только авторизацию */}
+            {/* ГЕЙТ 1: Без аккаунта вообще ничего не показываем */}
             {!user ? (
               <AuthView />
             ) : (
               <>
-                {/* ГЕЙТ 2: Если пользователь есть, но нет доступа — показываем оплату */}
+                {/* Теперь каталог виден ВСЕМ авторизованным */}
                 {view === 'catalog' && (
-                  hasAccess ? (
-                    <CatalogView {...state} setSelectedPhone={setSelectedPhone} />
-                  ) : (
-                    <SubscriptionView 
-                      setView={setView} 
-                      user={user}
-                      onNotify={() => state.sendPaymentNotification(user)} 
-                    />
-                  )
+                  <CatalogView {...state} setSelectedPhone={setSelectedPhone} />
                 )}
 
-                {/* Админка (доступна только с ролью ADMIN) */}
                 {view === 'admin' && user.role === 'ADMIN' && (
                   <AdminView {...state} setView={setView} />
                 )}
                 
-                {/* Личный кабинет */}
                 {view === 'profile' && (
                   <ProfileView user={user} setView={setView} setUser={setUser} />
                 )}
 
-                {/* Экран подписки */}
                 {view === 'subscription' && (
                   <SubscriptionView 
                     setView={setView} 
@@ -105,12 +95,7 @@ export default function App() {
               view === 'catalog' ? "text-[#D4AF37]" : "text-gray-300"
             )}
           >
-            <div className="relative">
-              <Smartphone size={24} />
-              {!hasAccess && user && (
-                <Lock size={10} className="absolute -top-1 -right-1 text-red-400" />
-              )}
-            </div>
+            <Smartphone size={24} />
             <span className="text-[9px] font-black uppercase tracking-tighter">Маркет</span>
           </button>
           
@@ -129,16 +114,16 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Модалка с информацией */}
+      {/* МОДАЛКА НОМЕРА С КНОПКОЙ-ПРОВЕРКОЙ */}
       <BottomSheet 
         isOpen={!!selectedPhone} 
         onClose={() => setSelectedPhone(null)} 
-        title="О номере"
+        title="Детали номера"
       >
         {selectedPhone && (
           <div className="space-y-8 text-center animate-in fade-in zoom-in duration-300">
             <div className="bg-gray-50 rounded-[2.5rem] py-10 px-4 border border-gray-100">
-              <h3 className="text-3xl sm:text-4xl md:text-5xl font-mono font-bold text-gray-900 tracking-tighter mb-4 italic break-all leading-none">
+              <h3 className="text-3xl sm:text-5xl font-mono font-bold text-gray-900 tracking-tighter mb-4 italic break-all leading-none">
                 {selectedPhone.number}
               </h3>
               <p className="text-3xl font-black text-[#D4AF37] italic">
@@ -147,14 +132,41 @@ export default function App() {
             </div>
             
             <div className="space-y-4">
-              <Button 
-                fullWidth 
-                size="lg" 
-                className="py-6 text-lg shadow-xl" 
-                onClick={() => window.open(KASPI_PAY_LINK, '_blank')}
-              >
-                <ExternalLink size={24}/> Купить через Kaspi
-              </Button>
+              {hasAccess ? (
+                // Если есть подписка — кнопка покупки
+                <Button 
+                  fullWidth 
+                  size="lg" 
+                  className="py-6 text-lg shadow-xl shadow-[#D4AF37]/20" 
+                  onClick={() => window.open(KASPI_PAY_LINK, '_blank')}
+                >
+                  <ExternalLink size={24} className="mr-2" /> Купить через Kaspi
+                </Button>
+              ) : (
+                // Если нет подписки — кнопка перехода на оплату VIP
+                <div className="space-y-4">
+                  <div className="bg-red-50 text-red-500 p-4 rounded-2xl flex items-center justify-center gap-2 border border-red-100">
+                    <Lock size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Покупка доступна только VIP</span>
+                  </div>
+                  <Button 
+                    fullWidth 
+                    size="lg" 
+                    variant="primary"
+                    className="py-6 text-lg shadow-xl" 
+                    onClick={() => {
+                      setSelectedPhone(null);
+                      setView('subscription');
+                    }}
+                  >
+                    <Crown size={20} className="mr-2 text-white" /> Открыть VIP доступ
+                  </Button>
+                </div>
+              )}
+              
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
+                {hasAccess ? "Безопасный платеж через Kaspi Pay" : "Активируйте VIP, чтобы забрать номер"}
+              </p>
             </div>
           </div>
         )}
