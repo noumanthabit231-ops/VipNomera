@@ -174,62 +174,68 @@ const BottomSheet = ({ isOpen, onClose, title, children }: any) => (
 
 export default function App() {
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'subscription'>('catalog');
+  
+  // 1. Авторизацию пока оставляем на LocalStorage (докрутим позже)
   const [user, setUser] = useState<UserProfile | null>(() => getStorage(KEYS.SESSION, null));
   const [users, setUsers] = useState<UserProfile[]>(() => getStorage(KEYS.USERS, [INITIAL_ADMIN]));
-  const [phones, setPhones] = useState<Phone[]>(() => getStorage(KEYS.PHONES, INITIAL_PHONES));
-  const [labels, setLabels] = useState<Label[]>(() => getStorage(KEYS.LABELS, INITIAL_LABELS));
-  const [phones, setPhones] = useState([]);
-  const [labels, setLabels] = useState([]);
-  const fetchData = async () => {
-  try {
-    const [phonesRes, labelsRes] = await Promise.all([
-      supabase.from('phones').select('*').order('created_at', { ascending: false }),
-      supabase.from('labels').select('*').order('text')
-    ]);
-    
-    if (phonesRes.data) setPhones(phonesRes.data);
-    if (labelsRes.data) setLabels(labelsRes.data);
-  } catch (error) {
-    console.error("Ошибка загрузки:", error);
-  }
-};
-    const handleSavePhone = async (payload: any) => {
-  const { id, ...data } = payload;
-  let result;
-  
-  if (id) {
-    // Редактирование
-    result = await supabase.from('phones').update(data).eq('id', id);
-  } else {
-    // Создание нового
-    result = await supabase.from('phones').insert([data]);
-  }
 
-  if (!result.error) {
-    fetchData(); // Рефреш списка
-    return true;
-  }
-  return false;
-};
-    const handleDeletePhone = async (id: string) => {
-  const { error } = await supabase.from('phones').delete().eq('id', id);
-  if (!error) fetchData();
-};
+  // 2. Номера и метки теперь берутся ТОЛЬКО из Supabase. Инициализируем пустыми массивами.
+  const [phones, setPhones] = useState<Phone[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
   
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
 
-  // Sync state to local storage
+  // 3. Загружаем данные из БД при первом рендере
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Синхронизация сессии пользователя с LocalStorage (номера и метки отсюда убрали!)
   useEffect(() => {
     setStorage(KEYS.SESSION, user);
     setStorage(KEYS.USERS, users);
-    setStorage(KEYS.PHONES, phones);
-    setStorage(KEYS.LABELS, labels);
-  }, [user, users, phones, labels]);
+  }, [user, users]);
 
-  // Auth
-  const [authData, setAuthData] = useState({ email: '', password: '', isLogin: true });
+  // --- SUPABASE ФУНКЦИИ ---
+  const fetchData = async () => {
+    try {
+      const [phonesRes, labelsRes] = await Promise.all([
+        supabase.from('phones').select('*').order('created_at', { ascending: false }),
+        supabase.from('labels').select('*').order('text')
+      ]);
+      
+      if (phonesRes.data) setPhones(phonesRes.data);
+      if (labelsRes.data) setLabels(labelsRes.data);
+    } catch (error) {
+      console.error("Ошибка загрузки:", error);
+    }
+  };
+
+  const handleSavePhone = async (payload: any) => {
+    const { id, ...data } = payload;
+    let result;
+    
+    if (id) {
+      result = await supabase.from('phones').update(data).eq('id', id);
+    } else {
+      result = await supabase.from('phones').insert([data]);
+    }
+
+    if (!result.error) {
+      fetchData(); // Обновляем список из базы
+      return true;
+    }
+    return false;
+  };
+
+  const handleDeletePhone = async (id: string) => {
+    const { error } = await supabase.from('phones').delete().eq('id', id);
+    if (!error) fetchData();
+  };
+
+  // --- ЛОКАЛЬНЫЕ ФУНКЦИИ (Будем переводить на Supabase позже) ---
   const handleAuth = () => {
     if (authData.isLogin) {
       const found = users.find(u => u.email === authData.email && u.password === authData.password);
@@ -242,21 +248,14 @@ export default function App() {
     }
   };
 
-  // Admin Actions
-  const addPhone = (num: string, price: number, status: 'IN_STOCK' | 'ON_ORDER', selectedLabels: string[]) => {
-    const item: Phone = { id: Date.now().toString(), number: num, price, status, labelIds: selectedLabels };
-    setPhones([item, ...phones]);
-  };
-
-  const addLabel = (text: string, color: string) => {
-    setLabels([...labels, { id: Date.now().toString(), text, color }]);
-  };
-
   const approveUser = (uid: string) => {
     const updated = users.map(u => u.id === uid ? { ...u, subscription: 'ACTIVE' as const } : u);
     setUsers(updated);
     if (user?.id === uid) setUser({ ...user, subscription: 'ACTIVE' });
   };
+
+  // ВАЖНО: Старые функции addPhone и addLabel можно удалить из твоего кода, 
+  // так как теперь их логику заменяет handleSavePhone.
 
   // Filtered List
   const filteredPhones = useMemo(() => {
