@@ -19,8 +19,11 @@ export const useGoldenApp = () => {
   const [labels, setLabels] = useState<Label[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
+  
+  // ЭТО БЫЛО ПРОПУЩЕНО:
+  const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
 
-  // States for Admin Forms
+  // States for Admin
   const [pn, setPn] = useState('');
   const [pr, setPr] = useState('');
   const [st, setSt] = useState<'IN_STOCK' | 'ON_ORDER'>('IN_STOCK');
@@ -75,6 +78,7 @@ export const useGoldenApp = () => {
   return {
     view, setView, user, setUser, users, setUsers, phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones, fetchData, handleSavePhone, 
-    handleDeletePhone, approveUser, pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc
+    handleDeletePhone, approveUser, pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc,
+    selectedPhone, setSelectedPhone // ТЕПЕРЬ ОНИ ЗДЕСЬ
   };
 };
