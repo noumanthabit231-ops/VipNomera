@@ -272,7 +272,7 @@ export default function App() {
   const filteredPhones = useMemo(() => {
   return phones.filter(p => {
     const matchesSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
-    // Здесь тоже используй p.label_ids
+    // Добавляем (p.label_ids || []) — это спасет от краша, если данных нет
     const matchesLabel = activeLabelFilter ? (p.label_ids || []).includes(activeLabelFilter) : true;
     return matchesSearch && matchesLabel;
   });
