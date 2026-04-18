@@ -24,7 +24,7 @@ import { CatalogView } from './views/CatalogView';
 import { AdminView } from './views/AdminView';
 import { AuthView } from './views/AuthView';
 import { ProfileView } from './views/ProfileView';
-import { SubscriptionView } from './views/SubscriptionView'; // Убедись, что создал этот файл
+import { SubscriptionView } from './views/SubscriptionView';
 import { BottomSheet } from './components/ui/BottomSheet';
 import { Button } from './components/ui/Button';
 import { cn } from './cn';
@@ -42,12 +42,11 @@ export default function App() {
     ...state 
   } = useGoldenApp() as any;
 
-  // Проверка прав доступа: Админ или Активная подписка
+  // Проверка прав доступа
   const hasAccess = useMemo(() => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
     
-    // Проверка статуса и даты истечения
     const isActive = user.subscription === 'ACTIVE';
     const isNotExpired = user.expiry_date ? new Date(user.expiry_date) > new Date() : false;
     
@@ -65,37 +64,39 @@ export default function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {/* АВТОРИЗАЦИЯ */}
             {view === 'auth' && <AuthView />}
 
-            {/* КАТАЛОГ (С блокировкой) */}
             {view === 'catalog' && (
               hasAccess ? (
                 <CatalogView {...state} setSelectedPhone={setSelectedPhone} />
               ) : (
-                <SubscriptionView setView={setView} />
+                <SubscriptionView 
+                  setView={setView} 
+                  user={user}
+                  onNotify={() => state.sendPaymentNotification(user)} 
+                />
               )
             )}
             
-            {/* АДМИНКА */}
             {view === 'admin' && (
               <AdminView {...state} setView={setView} />
             )}
             
-            {/* ПРОФИЛЬ */}
             {view === 'profile' && user && (
               <ProfileView user={user} setView={setView} setUser={setUser} />
             )}
 
-            {/* ОТДЕЛЬНЫЙ ЭКРАН ПОДПИСКИ (для перехода из профиля) */}
             {view === 'subscription' && (
-              <SubscriptionView setView={setView} />
+              <SubscriptionView 
+                setView={setView} 
+                user={user}
+                onNotify={() => state.sendPaymentNotification(user)} 
+              />
             )}
           </motion.div>
         </AnimatePresence>
       </main>
 
-      {/* Навигация */}
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-[85%] max-w-sm bg-white/70 backdrop-blur-2xl rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/40">
         <div className="flex items-center justify-around h-20">
           <button 
@@ -127,7 +128,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Модалка с инфой о номере */}
       <BottomSheet 
         isOpen={!!selectedPhone} 
         onClose={() => setSelectedPhone(null)} 
