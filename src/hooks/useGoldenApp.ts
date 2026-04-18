@@ -45,34 +45,31 @@ export const useGoldenApp = () => {
 
   // Обновление данных юзера (Проверка подписки)
   const refreshUserData = useCallback(async () => {
-    if (!user?.phone) return;
+  if (!user?.phone) return;
+  const cleanPhone = user.phone.replace(/\D/g, '');
+
+  const { data, error } = await supabase
+    .from('auth_codes')
+    .select('is_verified, name, subscription, expiry_date, tg_user_id, role') // ДОБАВИЛИ role
+    .ilike('phone', `%${cleanPhone}%`)
+    .eq('is_verified', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (data && !error) {
+    const updatedUser = { 
+      ...user, 
+      full_name: data.name, 
+      subscription: data.subscription || 'INACTIVE',
+      expiry_date: data.expiry_date,
+      tg_user_id: data.tg_user_id,
+      role: data.role || 'USER' // ТЕПЕРЬ РОЛЬ ПЕРЕДАЕТСЯ
+    };
     
-    const cleanPhone = user.phone.replace(/\D/g, '');
-
-    const { data, error } = await supabase
-      .from('auth_codes')
-      .select('is_verified, name, subscription, expiry_date, tg_user_id') 
-      .ilike('phone', `%${cleanPhone}%`)
-      .eq('is_verified', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (data && !error) {
-      const updatedUser = { 
-        ...user, 
-        full_name: data.name, 
-        subscription: data.subscription || 'INACTIVE',
-        expiry_date: data.expiry_date,
-        tg_user_id: data.tg_user_id 
-      };
-      
-      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
-        setUser(updatedUser);
-        localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
-      }
-    }
-  }, [user]);
+    // ... остальная логика сохранения
+  }
+}, [user]);
 
   // Уведомление в Telegram об оплате ПОДПИСКИ
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
