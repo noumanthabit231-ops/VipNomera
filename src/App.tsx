@@ -270,12 +270,13 @@ export default function App() {
   };
 
   const filteredPhones = useMemo(() => {
-    return phones.filter(p => {
-      const matchesSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLabel = activeLabelFilter ? (p.labelIds || []).includes(activeLabelFilter) : true;
-      return matchesSearch && matchesLabel;
-    });
-  }, [phones, searchQuery, activeLabelFilter]);
+  return phones.filter(p => {
+    const matchesSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
+    // Здесь тоже используй p.label_ids
+    const matchesLabel = activeLabelFilter ? (p.label_ids || []).includes(activeLabelFilter) : true;
+    return matchesSearch && matchesLabel;
+  });
+}, [phones, searchQuery, activeLabelFilter]);
 
   return (
     <div className="min-h-screen bg-[#050505] text-[#E0E0E0] selection:bg-[#D4AF37] selection:text-black">
