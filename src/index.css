@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
 @import "tailwindcss";
 
 :root {
@@ -6,27 +8,34 @@
 
 @layer base {
   body {
-    @apply bg-[#050505] text-[#E0E0E0] antialiased selection:bg-[#D4AF37] selection:text-black;
+    /* Максимально глубокий черный фон, текст приглушенный серый для контраста с золотом */
+    @apply bg-[#030303] text-[#A1A1AA] antialiased selection:bg-[#C5A059]/20 selection:text-[#E8D9A8];
     -webkit-tap-highlight-color: transparent;
     font-family: "Inter", system-ui, -apple-system, sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: "Cinzel", serif;
+    letter-spacing: 0.02em;
   }
 }
 
 @layer utilities {
-  .glass {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  .glass-panel {
+    @apply bg-[#080808]/80 backdrop-blur-2xl border border-white/[0.03] shadow-2xl;
   }
   
-  .glass-card {
-    @apply bg-[#0F0F0F] border border-white/[0.05] shadow-2xl;
+  /* Эффект матового металла вместо дешевого желтого */
+  .metallic-gold-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#B38728] via-[#FDF5A6] to-[#B38728];
   }
 
-  .gold-gradient {
-    @apply bg-gradient-to-br from-[#D4AF37] via-[#FFD700] to-[#B8860B];
+  .metallic-gold-bg {
+    @apply bg-gradient-to-r from-[#B38728] via-[#FDF5A6] to-[#B38728] text-black;
   }
 
-  .gold-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-br from-[#D4AF37] via-[#FFD700] to-[#B8860B];
+  .gold-border-glow {
+    @apply border border-[#B38728]/20 hover:border-[#B38728]/50 hover:shadow-[0_0_30px_-5px_rgba(179,135,40,0.2)] transition-all duration-700 ease-out;
   }
 
   .hide-scrollbar {
@@ -36,22 +45,4 @@
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 4px;
-}
-::-webkit-scrollbar-thumb {
-  background: #1A1A1A;
-  border-radius: 10px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
 }
