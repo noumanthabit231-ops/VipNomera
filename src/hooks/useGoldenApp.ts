@@ -1,6 +1,23 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { Phone, Label, UserProfile } from '../types';
+import { 
+  Smartphone, 
+  User as UserIcon, 
+  ShieldCheck, 
+  ExternalLink,
+  Plus,
+  Trash2,
+  X,
+  Search,
+  Settings,
+  Crown,
+  LogOut,
+  ChevronRight,
+  ShoppingBag,
+  MessageSquare,
+  Zap
+} from 'lucide-react';
 
 const KEYS = { USERS: 'golden_v2_users', SESSION: 'golden_v2_session' };
 
