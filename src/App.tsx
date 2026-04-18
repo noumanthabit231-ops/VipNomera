@@ -1,9 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
+  User as UserIcon, 
+  Crown, 
+  ShoppingBag, 
   Settings, 
   ChevronRight, 
   X, 
+  LogOut, 
   Smartphone,
   Plus,
   Trash2,
