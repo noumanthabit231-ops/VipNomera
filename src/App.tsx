@@ -14,6 +14,8 @@ import { Navigation } from './components/Navigation';
 
 /** --- Helpers --- */
 const KEYS = { USERS: 'golden_v2_users', SESSION: 'golden_v2_session' };
+const KASPI_PAY_LINK = "https://pay.kaspi.kz/pay/nlgccild";
+
 const getStorage = <T,>(key: string, fallback: T): T => {
   const data = localStorage.getItem(key);
   try { return data ? JSON.parse(data) : fallback; } catch { return fallback; }
@@ -75,10 +77,9 @@ const BottomSheet = ({ isOpen, onClose, title, children }: any) => (
   </AnimatePresence>
 );
 
-/** --- Sub-Views (Declared Outside to prevent re-mounting) --- */
-
-const AdminPanel = ({ 
-  phones, labels, users, setUsers, approveUser, fetchData, handleSavePhone, handleDeletePhone, setView,
+/** --- Admin Panel (Вынесена наружу, чтобы избежать лагов ввода) --- */
+const AdminPanelContent = ({ 
+  phones, labels, users, approveUser, fetchData, handleSavePhone, handleDeletePhone, setView,
   pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc
 }: any) => {
   const [tab, setTab] = useState<'orders' | 'phones' | 'labels'>('phones');
@@ -127,7 +128,7 @@ const AdminPanel = ({
                 <div className="flex gap-2 items-center mt-1">
                   <p className="text-[10px] text-[#D4AF37] font-bold">{p.price.toLocaleString()} ₸</p>
                   <span className={cn("text-[8px] px-1.5 py-0.5 rounded uppercase font-black", p.status === 'IN_STOCK' ? "bg-green-500/10 text-green-500" : "bg-orange-500/10 text-orange-500")}>
-                    {p.status === 'IN_STOCK' ? 'STOCK' : '24H'}
+                    {p.status === 'IN_STOCK' ? 'READY' : '24H'}
                   </span>
                 </div>
               </div>
@@ -142,8 +143,6 @@ const AdminPanel = ({
           <Card className="border-[#D4AF37]/20 bg-[#0A0A0A]">
             <div className="space-y-4">
               <input placeholder="Название метки" className="w-full bg-black border border-white/10 rounded-2xl p-4 text-sm text-white" value={lt} onChange={e => setLt(e.target.value.toUpperCase())} />
-              
-              {/* Улучшенный выбор цвета */}
               <div className="flex items-center gap-4 bg-black p-4 rounded-2xl border border-white/5">
                 <div className="relative w-12 h-12 rounded-xl border border-white/10 shrink-0" style={{ backgroundColor: lc }}>
                   <input type="color" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" value={lc} onChange={e => setLc(e.target.value)} />
@@ -152,9 +151,7 @@ const AdminPanel = ({
                   <p className="text-[10px] font-black uppercase text-gray-400">Цвет метки</p>
                   <p className="text-[8px] text-gray-600 uppercase">Нажмите на квадрат</p>
                 </div>
-                <div className="font-mono text-[10px] text-gray-500">{lc.toUpperCase()}</div>
               </div>
-
               <Button fullWidth onClick={async () => { await supabase.from('labels').insert([{ text: lt, color: lc }]); setLt(''); fetchData(); }}>Создать метку</Button>
             </div>
           </Card>
@@ -172,7 +169,7 @@ const AdminPanel = ({
       {tab === 'orders' && (
         <div className="space-y-4">
           {users.filter((u: any) => u.subscription === 'PENDING').length === 0 && (
-            <div className="py-20 text-center opacity-20 italic text-sm">Нет активных заявок</div>
+            <div className="py-20 text-center opacity-20 italic text-sm">Нет новых заявок</div>
           )}
           {users.filter((u: any) => u.subscription === 'PENDING').map((u: any) => (
             <Card key={u.id} className="flex items-center justify-between">
@@ -186,18 +183,20 @@ const AdminPanel = ({
   );
 };
 
+/** --- Main Application --- */
 export default function App() {
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'subscription'>('catalog');
   const [user, setUser] = useState<UserProfile | null>(() => getStorage(KEYS.SESSION, null));
   const [users, setUsers] = useState<UserProfile[]>(() => getStorage(KEYS.USERS, [INITIAL_ADMIN]));
   const [authData, setAuthData] = useState({ email: '', password: '', isLogin: true });
+
   const [phones, setPhones] = useState<Phone[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
 
-  // Состояния для форм (храним здесь, передаем вниз)
+  // States for Admin Forms
   const [pn, setPn] = useState('');
   const [pr, setPr] = useState('');
   const [st, setSt] = useState<'IN_STOCK' | 'ON_ORDER'>('IN_STOCK');
@@ -221,28 +220,16 @@ export default function App() {
   };
 
   const handleSavePhone = async () => {
-  if (!pn || !pr) return alert('Заполните данные');
-  
-  // Убедись, что ключ совпадает с именем колонки в БД (обычно label_ids)
-  const payload = { 
-    number: pn, 
-    price: Number(pr), 
-    status: st, 
-    label_ids: sl  // <--- Поменяй здесь
-  }; 
-  
-  const { error } = await supabase.from('phones').insert([payload]);
-  
-  if (error) {
-    console.error("Ошибка Supabase:", error);
-    alert(`Ошибка: ${error.message}`);
+    if (!pn || !pr) return alert('Заполните данные');
+    const payload = { number: pn, price: Number(pr), status: st, label_ids: sl };
+    const { error } = await supabase.from('phones').insert([payload]);
+    if (!error) {
+      setPn(''); setPr(''); setSl([]);
+      await fetchData();
+      return true;
+    }
     return false;
-  }
-
-  setPn(''); setPr(''); setSl([]);
-  await fetchData();
-  return true;
-};
+  };
 
   const handleDeletePhone = async (id: string) => {
     if (confirm('Удалить номер?')) {
@@ -255,7 +242,7 @@ export default function App() {
     if (authData.isLogin) {
       const found = users.find(u => u.email === authData.email && u.password === authData.password);
       if (found) { setUser(found); setView('catalog'); }
-      else alert('Ошибка входа');
+      else alert('Неверный логин или пароль');
     } else {
       if (users.find(u => u.email === authData.email)) return alert('Email занят');
       const newUser: UserProfile = { id: Math.random().toString(36).substr(2, 9), email: authData.email, password: authData.password, role: 'USER', subscription: 'INACTIVE' };
@@ -270,13 +257,12 @@ export default function App() {
   };
 
   const filteredPhones = useMemo(() => {
-  return phones.filter(p => {
-    const matchesSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
-    // Добавляем (p.label_ids || []) — это спасет от краша, если данных нет
-    const matchesLabel = activeLabelFilter ? (p.label_ids || []).includes(activeLabelFilter) : true;
-    return matchesSearch && matchesLabel;
-  });
-}, [phones, searchQuery, activeLabelFilter]);
+    return phones.filter(p => {
+      const matchesSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesLabel = activeLabelFilter ? (p.label_ids || []).includes(activeLabelFilter) : true;
+      return matchesSearch && matchesLabel;
+    });
+  }, [phones, searchQuery, activeLabelFilter]);
 
   return (
     <div className="min-h-screen bg-[#050505] text-[#E0E0E0] selection:bg-[#D4AF37] selection:text-black">
@@ -298,10 +284,10 @@ export default function App() {
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                   </div>
                   <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-                    <button onClick={() => setActiveLabelFilter(null)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest", !activeLabelFilter ? "bg-[#D4AF37] text-black" : "bg-white/5 text-gray-500")}>Все</button>
+                    <button onClick={() => setActiveLabelFilter(null)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", !activeLabelFilter ? "bg-[#D4AF37] text-black" : "bg-white/5 text-gray-500")}>Все</button>
                     {labels.map(l => (
                       <button key={l.id} onClick={() => setActiveLabelFilter(l.id === activeLabelFilter ? null : l.id)} 
-                        className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest", activeLabelFilter === l.id ? "bg-white text-black" : "bg-white/5 text-gray-500")}
+                        className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", activeLabelFilter === l.id ? "bg-white text-black" : "bg-white/5 text-gray-500")}
                       >{l.text}</button>
                     ))}
                   </div>
@@ -316,20 +302,20 @@ export default function App() {
             )}
 
             {view === 'admin' && (
-              <AdminPanel 
-                phones={phones} labels={labels} users={users} setUsers={setUsers} approveUser={approveUser} fetchData={fetchData} handleSavePhone={handleSavePhone} handleDeletePhone={handleDeletePhone} setView={setView}
+              <AdminPanelContent 
+                phones={phones} labels={labels} users={users} approveUser={approveUser} fetchData={fetchData} handleSavePhone={handleSavePhone} handleDeletePhone={handleDeletePhone} setView={setView}
                 pn={pn} setPn={setPn} pr={pr} setPr={setPr} st={st} setSt={setSt} sl={sl} setSl={setSl} lt={lt} setLt={setLt} lc={lc} setLc={setLc}
               />
             )}
 
             {view === 'auth' && (
               <div className="pt-20 space-y-8 max-w-sm mx-auto text-center">
-                <h1 className="text-4xl font-black gold-text italic">ACCESS</h1>
-                <Card className="bg-[#111] p-8 space-y-4">
+                <h1 className="text-4xl font-black gold-text italic tracking-tighter">ACCESS</h1>
+                <Card className="bg-[#111] p-8 space-y-4 border-white/10 shadow-2xl">
                   <input placeholder="Email" className="w-full bg-black border border-white/10 rounded-2xl p-4 text-white" value={authData.email} onChange={e => setAuthData({...authData, email: e.target.value})} />
-                  <input type="password" placeholder="Password" className="w-full bg-black border border-white/10 rounded-2xl p-4 text-white" value={authData.password} onChange={e => setAuthData({...authData, password: e.target.value})} />
+                  <input type="password" placeholder="Пароль" className="w-full bg-black border border-white/10 rounded-2xl p-4 text-white" value={authData.password} onChange={e => setAuthData({...authData, password: e.target.value})} />
                   <Button fullWidth size="lg" onClick={handleAuth}>{authData.isLogin ? 'Войти' : 'Создать'}</Button>
-                  <button onClick={() => setAuthData({...authData, isLogin: !authData.isLogin})} className="text-xs text-zinc-600 uppercase font-black">{authData.isLogin ? 'Регистрация' : 'Вход'}</button>
+                  <button onClick={() => setAuthData({...authData, isLogin: !authData.isLogin})} className="text-xs text-zinc-600 uppercase font-black tracking-widest">{authData.isLogin ? 'Регистрация' : 'Вход'}</button>
                 </Card>
               </div>
             )}
@@ -345,7 +331,7 @@ export default function App() {
                   <div className="space-y-3 pt-4 border-t border-white/5">
                     <div className="flex justify-between items-center p-4 bg-black rounded-2xl border border-white/5">
                       <span className="text-[10px] font-black uppercase text-gray-500">Subscription</span>
-                      <span className={cn("text-[9px] font-black uppercase px-3 py-1 rounded-full", user.subscription === 'ACTIVE' ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500")}>
+                      <span className={cn("text-[9px] font-black uppercase px-3 py-1 rounded-full", user.subscription === 'ACTIVE' ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500 animate-pulse")}>
                         {user.subscription === 'ACTIVE' ? 'Active' : 'Pending'}
                       </span>
                     </div>
@@ -359,11 +345,15 @@ export default function App() {
             {view === 'subscription' && (
               <div className="pt-4 space-y-8 text-center px-4">
                 <div className="w-20 h-20 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto border border-[#D4AF37]/20 shadow-2xl"><Crown size={40} className="text-[#D4AF37]" /></div>
-                <h1 className="text-3xl font-black gold-text italic">VIP ACCESS</h1>
+                <h1 className="text-3xl font-black gold-text italic tracking-tighter">VIP ACCESS</h1>
                 <div className="bg-[#111] p-10 rounded-[2.5rem] border border-[#D4AF37]/20 space-y-6">
                   <p className="text-4xl font-black italic text-white tracking-tighter">5 000 ₸</p>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">Kaspi Gold:<br/><span className="text-white text-lg select-all">+7 701 555 55 55</span></p>
-                  <Button fullWidth size="lg" disabled={user?.subscription === 'PENDING'} onClick={() => { if (!user) return; const updatedUsers = users.map(u => u.id === user.id ? { ...u, subscription: 'PENDING' as const } : u); setUsers(updatedUsers); setUser({ ...user, subscription: 'PENDING' }); }}>
+                  <p className="text-[10px] text-zinc-500 uppercase font-black">Ежемесячно</p>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Kaspi Pay:<br/><span className="text-[#D4AF37] text-sm break-all select-all font-mono">pay.kaspi.kz/pay/nlgccild</span></p>
+                  <Button fullWidth size="lg" className="py-5" onClick={() => window.open(KASPI_PAY_LINK, '_blank')}>
+                    <ExternalLink size={18} className="mr-2" /> Перейти к оплате
+                  </Button>
+                  <Button fullWidth variant="outline" disabled={user?.subscription === 'PENDING'} onClick={() => { if (!user) return; const updatedUsers = users.map(u => u.id === user.id ? { ...u, subscription: 'PENDING' as const } : u); setUsers(updatedUsers); setUser({ ...user, subscription: 'PENDING' }); }}>
                     {user?.subscription === 'PENDING' ? 'Ожидание активации...' : 'Я оплатил'}
                   </Button>
                 </div>
@@ -374,7 +364,7 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* Мобильная Навигация (Чистая, 2 кнопки) */}
+      {/* Мобильная Навигация */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-sm bg-[#0A0A0A]/80 backdrop-blur-2xl rounded-[2rem] border border-white/10 shadow-2xl">
         <div className="flex items-center justify-around h-16">
           <button onClick={() => setView('catalog')} className={cn("flex flex-col items-center gap-1 transition-all flex-1", view === 'catalog' ? "text-[#D4AF37]" : "text-zinc-600")}>
@@ -388,14 +378,12 @@ export default function App() {
         </div>
       </nav>
 
-      <BottomSheet isOpen={!!selectedPhone} onClose={() => setSelectedPhone(null)} title="Информация">
+      <BottomSheet isOpen={!!selectedPhone} onClose={() => setSelectedPhone(null)} title="Информация о номере">
         {selectedPhone && (
           <div className="space-y-8 py-4 text-center">
-            <div className="bg-[#111] rounded-[2.5rem] p-10 border border-white/5">
-              <h3 className="text-4xl font-mono font-black italic text-white tracking-tighter mb-2 italic select-all">{selectedPhone.number}</h3>
+            <div className="bg-[#111] rounded-[2.5rem] p-10 border border-white/5 shadow-inner">
+              <h3 className="text-4xl font-mono font-black italic text-white tracking-tighter mb-2 select-all italic">{selectedPhone.number}</h3>
               <p className="text-3xl font-black gold-text italic">{selectedPhone.price.toLocaleString()} ₸</p>
-              
-              {/* Статус в карточке */}
               <div className="mt-4 flex justify-center">
                 <span className={cn(
                   "px-4 py-1.5 rounded-full text-[10px] font-black uppercase border",
@@ -415,11 +403,11 @@ export default function App() {
               </div>
             ) : (
               <div className="space-y-4">
-                <Button fullWidth size="lg" className="py-5" onClick={() => window.open('https://kaspi.kz', '_blank')}>
-                  <ExternalLink size={20}/> Оплатить через Kaspi Pay
+                <Button fullWidth size="lg" className="py-5" onClick={() => window.open(KASPI_PAY_LINK, '_blank')}>
+                  <ExternalLink size={20}/> Оплатить (Kaspi Pay)
                 </Button>
                 <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase text-zinc-700 tracking-widest">
-                  <ShieldCheck size={16}/> 100% Гарантия безопасности
+                  <ShieldCheck size={16}/> Гарантированная безопасность
                 </div>
               </div>
             )}
