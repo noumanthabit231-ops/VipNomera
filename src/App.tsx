@@ -388,46 +388,63 @@ export default function App() {
                   </select>
                   {/* Блок с кнопками меток и кнопкой добавления */}
             {/* Блок выбора меток и кнопка добавления */}
-              <div className="space-y-4">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold mb-2">Присвоить метки:</p>
-                <div className="flex flex-wrap gap-2">
-                  {labels.map(l => (
-                    <button 
-                      key={l.id} 
-                      onClick={() => setSl(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])}
-                      className={cn(
-                        "px-3 py-1.5 rounded-full text-[9px] font-black uppercase border transition-all duration-300", 
-                        sl.includes(l.id) ? "border-[#D4AF37] text-[#D4AF37] bg-[#D4AF37]/5" : "border-white/10 text-zinc-600 hover:border-white/20"
-                      )}
-                      style={sl.includes(l.id) ? { borderColor: l.color, color: l.color } : {}}
-                    >
-                      {l.text}
-                    </button>
-                  ))}
+              {tab === 'phones' && (
+            <div className="space-y-6">
+              <Card className="border-[#D4AF37]/20 bg-[#151515]">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37] mb-6">Добавление номера</h3>
+                <div className="space-y-4">
+                  <input placeholder="+7 (___) ___ __ __" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" value={pn} onChange={e => setPn(e.target.value)} />
+                  <input type="number" placeholder="Цена (₸)" className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm" value={pr} onChange={e => setPr(e.target.value)} />
+                  <select className="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white text-sm appearance-none" value={st} onChange={e => setSt(e.target.value as any)}>
+                    <option value="IN_STOCK">В наличии</option>
+                    <option value="ON_ORDER">На заказ</option>
+                  </select>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {labels.map(l => (
+                      <button 
+                        key={l.id} 
+                        onClick={() => setSl(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-[9px] font-black uppercase border transition-all", 
+                          sl.includes(l.id) ? "border-white text-white" : "border-white/10 text-gray-600"
+                        )}
+                        style={sl.includes(l.id) ? { backgroundColor: l.color } : {}}
+                      >
+                        {l.text}
+                      </button>
+                    ))}
+                  </div>
+                  <Button 
+                    fullWidth 
+                    className="mt-4" 
+                    onClick={async () => { 
+                      const success = await handleSavePhone({ number: pn, price: Number(pr), status: st, labelIds: sl }); 
+                      if (success) { setPn(''); setPr(''); setSl([]); }
+                    }}
+                  >
+                    <Plus size={16}/> Опубликовать лот
+                  </Button>
                 </div>
-              
-                <Button 
-                  fullWidth 
-                  className="mt-6 py-4 shadow-xl shadow-[#D4AF37]/5" 
-                  onClick={async () => { 
-                    // Вызов функции сохранения в Supabase
-                    const success = await handleSavePhone({ 
-                      number: pn, 
-                      price: Number(pr), 
-                      status: st, 
-                      labelIds: sl 
-                    }); 
-                    
-                    if (success) {
-                      setPn(''); 
-                      setPr(''); 
-                      setSl([]); 
-                    }
-                  }}
-                >
-                  <Plus size={16}/> Опубликовать в базу
-                </Button>
+              </Card>
+
+              <div className="space-y-3">
+                {phones.map(p => (
+                  <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="flex flex-col">
+                      <span className="font-mono text-sm text-white font-black">{p.number}</span>
+                      <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-widest">{p.price.toLocaleString()} ₸</span>
+                    </div>
+                    <button 
+                      onClick={() => handleDeletePhone(p.id)} 
+                      className="p-2 text-red-500/30 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={16}/>
+                    </button>
+                  </div>
+                ))}
               </div>
+            </div>
+          )}
 
 {/* Список активных номеров для управления */}
 <div className="space-y-3 mt-10">
