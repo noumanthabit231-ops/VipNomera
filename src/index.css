@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    @apply bg-[#050505] text-[#E0E0E0] antialiased selection:bg-[#D4AF37] selection:text-black;
+    -webkit-tap-highlight-color: transparent;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+  
+  .glass-card {
+    @apply bg-[#0F0F0F] border border-white/[0.05] shadow-2xl;
+  }
+
+  .gold-gradient {
+    @apply bg-gradient-to-br from-[#D4AF37] via-[#FFD700] to-[#B8860B];
+  }
+
+  .gold-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-[#D4AF37] via-[#FFD700] to-[#B8860B];
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #1A1A1A;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
