@@ -2,19 +2,8 @@ import { useState, useMemo } from 'react';
 import { 
   Smartphone, 
   User as UserIcon, 
-  ShieldCheck, 
   ExternalLink,
-  Plus,
-  Trash2,
-  X,
-  Search,
-  Settings,
   Crown,
-  LogOut,
-  ChevronRight,
-  ShoppingBag,
-  MessageSquare,
-  Zap,
   Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,7 +31,7 @@ export default function App() {
     ...state 
   } = useGoldenApp() as any;
 
-  // Проверка прав доступа
+  // Железная проверка доступа
   const hasAccess = useMemo(() => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
@@ -58,45 +47,55 @@ export default function App() {
       <main className="max-w-xl mx-auto px-5 min-h-screen pb-32">
         <AnimatePresence mode="wait">
           <motion.div
-            key={view + (hasAccess ? '-unlocked' : '-locked')}
+            key={view + (user ? 'auth' : 'noauth')}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {view === 'auth' && <AuthView />}
+            {/* ГЕЙТ 1: Если нет пользователя — показываем только авторизацию */}
+            {!user ? (
+              <AuthView />
+            ) : (
+              <>
+                {/* ГЕЙТ 2: Если пользователь есть, но нет доступа — показываем оплату */}
+                {view === 'catalog' && (
+                  hasAccess ? (
+                    <CatalogView {...state} setSelectedPhone={setSelectedPhone} />
+                  ) : (
+                    <SubscriptionView 
+                      setView={setView} 
+                      user={user}
+                      onNotify={() => state.sendPaymentNotification(user)} 
+                    />
+                  )
+                )}
 
-            {view === 'catalog' && (
-              hasAccess ? (
-                <CatalogView {...state} setSelectedPhone={setSelectedPhone} />
-              ) : (
-                <SubscriptionView 
-                  setView={setView} 
-                  user={user}
-                  onNotify={() => state.sendPaymentNotification(user)} 
-                />
-              )
-            )}
-            
-            {view === 'admin' && (
-              <AdminView {...state} setView={setView} />
-            )}
-            
-            {view === 'profile' && user && (
-              <ProfileView user={user} setView={setView} setUser={setUser} />
-            )}
+                {/* Админка (доступна только с ролью ADMIN) */}
+                {view === 'admin' && user.role === 'ADMIN' && (
+                  <AdminView {...state} setView={setView} />
+                )}
+                
+                {/* Личный кабинет */}
+                {view === 'profile' && (
+                  <ProfileView user={user} setView={setView} setUser={setUser} />
+                )}
 
-            {view === 'subscription' && (
-              <SubscriptionView 
-                setView={setView} 
-                user={user}
-                onNotify={() => state.sendPaymentNotification(user)} 
-              />
+                {/* Экран подписки */}
+                {view === 'subscription' && (
+                  <SubscriptionView 
+                    setView={setView} 
+                    user={user}
+                    onNotify={() => state.sendPaymentNotification(user)} 
+                  />
+                )}
+              </>
             )}
           </motion.div>
         </AnimatePresence>
       </main>
 
+      {/* Навигация */}
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-[85%] max-w-sm bg-white/70 backdrop-blur-2xl rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/40">
         <div className="flex items-center justify-around h-20">
           <button 
@@ -108,7 +107,7 @@ export default function App() {
           >
             <div className="relative">
               <Smartphone size={24} />
-              {!hasAccess && user && view !== 'auth' && (
+              {!hasAccess && user && (
                 <Lock size={10} className="absolute -top-1 -right-1 text-red-400" />
               )}
             </div>
@@ -123,11 +122,14 @@ export default function App() {
             )}
           >
             <UserIcon size={24} />
-            <span className="text-[9px] font-black uppercase tracking-tighter">Кабинет</span>
+            <span className="text-[9px] font-black uppercase tracking-tighter">
+              {user ? 'Кабинет' : 'Войти'}
+            </span>
           </button>
         </div>
       </nav>
 
+      {/* Модалка с информацией */}
       <BottomSheet 
         isOpen={!!selectedPhone} 
         onClose={() => setSelectedPhone(null)} 
@@ -136,20 +138,12 @@ export default function App() {
         {selectedPhone && (
           <div className="space-y-8 text-center animate-in fade-in zoom-in duration-300">
             <div className="bg-gray-50 rounded-[2.5rem] py-10 px-4 border border-gray-100">
-              <h3 className="text-3xl sm:text-4xl md:text-5xl font-mono font-bold text-gray-900 tracking-tighter mb-4 italic break-all select-all leading-none">
+              <h3 className="text-3xl sm:text-4xl md:text-5xl font-mono font-bold text-gray-900 tracking-tighter mb-4 italic break-all leading-none">
                 {selectedPhone.number}
               </h3>
               <p className="text-3xl font-black text-[#D4AF37] italic">
                 {selectedPhone.price.toLocaleString()} ₸
               </p>
-              <div className="mt-6 flex justify-center">
-                <span className={cn(
-                  "px-5 py-2 rounded-full text-[10px] font-black uppercase border-2",
-                  selectedPhone.status === 'IN_STOCK' ? "border-green-100 text-green-600 bg-white" : "border-orange-100 text-orange-600 bg-white"
-                )}>
-                  {selectedPhone.status === 'IN_STOCK' ? '• В наличии' : '• Ожидание 24 часа'}
-                </span>
-              </div>
             </div>
             
             <div className="space-y-4">
@@ -161,9 +155,6 @@ export default function App() {
               >
                 <ExternalLink size={24}/> Купить через Kaspi
               </Button>
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
-                Безопасный платеж через Kaspi Pay
-              </p>
             </div>
           </div>
         )}
