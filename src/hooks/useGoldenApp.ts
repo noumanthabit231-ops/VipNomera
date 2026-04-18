@@ -43,92 +43,88 @@ export const useGoldenApp = () => {
     if (lRes.data) setLabels(lRes.data);
   }, []);
 
-  // Обновление данных юзера (Проверка подписки) — ИСПРАВЛЕНО
+  // Обновление данных юзера (Проверка подписки)
   const refreshUserData = useCallback(async () => {
-  if (!user?.phone) return;
-  
-  const cleanPhone = user.phone.replace(/\D/g, '');
-
-  const { data, error } = await supabase
-    .from('auth_codes')
-    // ОБЯЗАТЕЛЬНО добавь tg_user_id в select:
-    .select('is_verified, name, subscription, expiry_date, tg_user_id') 
-    .ilike('phone', `%${cleanPhone}%`)
-    .eq('is_verified', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (data && !error) {
-    const updatedUser = { 
-      ...user, 
-      full_name: data.name, 
-      subscription: data.subscription || 'INACTIVE',
-      expiry_date: data.expiry_date,
-      tg_user_id: data.tg_user_id // ТЕПЕРЬ ID ПЕРЕДАЕТСЯ В СЕССИЮ
-    };
+    if (!user?.phone) return;
     
-    if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
-      setUser(updatedUser);
-      localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
+    const cleanPhone = user.phone.replace(/\D/g, '');
+
+    const { data, error } = await supabase
+      .from('auth_codes')
+      .select('is_verified, name, subscription, expiry_date, tg_user_id') 
+      .ilike('phone', `%${cleanPhone}%`)
+      .eq('is_verified', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (data && !error) {
+      const updatedUser = { 
+        ...user, 
+        full_name: data.name, 
+        subscription: data.subscription || 'INACTIVE',
+        expiry_date: data.expiry_date,
+        tg_user_id: data.tg_user_id 
+      };
+      
+      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
+        setUser(updatedUser);
+        localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
+      }
     }
-  }
-}, [user]);
+  }, [user]);
 
-  // Уведомление в Telegram об оплате
+  // Уведомление в Telegram об оплате ПОДПИСКИ
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
-  const cleanPhone = userData?.phone?.replace(/\D/g, '');
-  // Берем ID телеграма, который мы сохранили в сессии при входе
-  const tgId = userData?.tg_user_id; 
+    const cleanPhone = userData?.phone?.replace(/\D/g, '');
+    const tgId = userData?.tg_user_id; 
 
-  const message = `
+    const message = `
 🔔 *НОВАЯ ЗАЯВКА НА ОПЛАТУ*
 👤 Клиент: ${userData?.full_name || 'Не указано'}
 📱 Номер: +${cleanPhone || 'Не указано'}
 📦 Услуга: ${detail}
 💰 Статус: Ожидает подтверждения
 ⏰ Время: ${new Date().toLocaleString('ru-RU')}
-  `;
+    `;
 
-  const keyboard = {
-  inline_keyboard: [
-    [
-      { text: "✅ Подтвердить оплату", callback_data: `approve_pay:${cleanPhone}` }
-    ],
-    [
-      { 
-        text: "🔵 Написать в Telegram", 
-        // Если tg_user_id есть — пишем по ID, если нет — ищем по номеру
-        url: userData?.tg_user_id 
-          ? `tg://user?id=${userData.tg_user_id}` 
-          : `https://t.me/+${cleanPhone}` 
-      }
-    ]
-  ]
-};
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: "✅ Подтвердить оплату", callback_data: `approve_pay:${cleanPhone}` }
+        ],
+        [
+          { 
+            text: "🔵 Написать в Telegram", 
+            url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}` 
+          }
+        ]
+      ]
+    };
 
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TG_CHAT_ID,
-        text: message,
-        parse_mode: 'Markdown',
-        reply_markup: keyboard
-      }),
-    });
-    return res.ok;
-  } catch (err) {
-    console.error("TG Error:", err);
-    return false;
-  }
-};
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TG_CHAT_ID,
+          text: message,
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error("TG Error:", err);
+      return false;
+    }
+  };
 
+  // Уведомление в Telegram о покупке КОНКРЕТНОГО НОМЕРА
   const sendPurchaseNotification = async (userData: any, phoneData: any) => {
-  const cleanPhone = userData?.phone?.replace(/\D/g, '');
-  
-  const message = `
+    const cleanPhone = userData?.phone?.replace(/\D/g, '');
+    
+    const message = `
 💰 *ЗАЯВКА НА ПОКУПКУ НОМЕРА*
 ━━━━━━━━━━━━━━━━━━
 👤 *Клиент:* ${userData?.full_name || 'Не указано'}
@@ -137,36 +133,36 @@ export const useGoldenApp = () => {
 💵 *ЦЕНА:* ${phoneData.price.toLocaleString()} ₸
 ━━━━━━━━━━━━━━━━━━
 ⏰ *Время:* ${new Date().toLocaleString('ru-RU')}
-  `;
+    `;
 
-  const keyboard = {
-    inline_keyboard: [
-      [
-        { 
-          text: "🔵 Связаться в Telegram", 
-          url: userData?.tg_user_id ? `tg://user?id=${userData.tg_user_id}` : `https://t.me/+${cleanPhone}`
-        }
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { 
+            text: "🔵 Связаться в Telegram", 
+            url: userData?.tg_user_id ? `tg://user?id=${userData.tg_user_id}` : `https://t.me/+${cleanPhone}`
+          }
+        ]
       ]
-    ]
-  };
+    };
 
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TG_CHAT_ID,
-        text: message,
-        parse_mode: 'Markdown',
-        reply_markup: keyboard
-      }),
-    });
-    return res.ok;
-  } catch (err) {
-    console.error(err);
-    return false;
-  }
-};
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TG_CHAT_ID,
+          text: message,
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
 
   // Админка: Добавить номер
   const handleSavePhone = async () => {
@@ -195,7 +191,6 @@ export const useGoldenApp = () => {
     fetchData(); 
   }, [fetchData]);
 
-  // Авто-обновление статуса каждые 10 секунд (Polling)
   useEffect(() => {
     if (user && view !== 'auth') {
       const interval = setInterval(refreshUserData, 10000);
@@ -203,7 +198,6 @@ export const useGoldenApp = () => {
     }
   }, [user, view, refreshUserData]);
 
-  // Синхронизация сессии с LocalStorage
   useEffect(() => {
     if (user) {
       localStorage.setItem(KEYS.SESSION, JSON.stringify(user));
@@ -212,7 +206,6 @@ export const useGoldenApp = () => {
     }
   }, [user]);
 
-  // Фильтрация каталога (Поиск + Теги)
   const filteredPhones = useMemo(() => {
     return phones.filter(p => {
       const matchesSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
@@ -221,6 +214,7 @@ export const useGoldenApp = () => {
     });
   }, [phones, searchQuery, activeLabelFilter]);
 
+  // --- РЕЗУЛЬТАТ ХУКА ---
   return {
     // Навигация и Юзер
     view, setView, user, setUser, 
@@ -230,9 +224,13 @@ export const useGoldenApp = () => {
     activeLabelFilter, setActiveLabelFilter, filteredPhones,
     selectedPhone, setSelectedPhone,
     
-    // Действия
-    fetchData, refreshUserData, handleSavePhone, 
-    handleDeletePhone, sendPaymentNotification,
+    // Действия (ВАЖНО: Добавлена sendPurchaseNotification)
+    fetchData, 
+    refreshUserData, 
+    handleSavePhone, 
+    handleDeletePhone, 
+    sendPaymentNotification,
+    sendPurchaseNotification,
     
     // Формы админа
     pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc
