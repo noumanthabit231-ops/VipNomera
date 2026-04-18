@@ -125,6 +125,49 @@ export const useGoldenApp = () => {
   }
 };
 
+  const sendPurchaseNotification = async (userData: any, phoneData: any) => {
+  const cleanPhone = userData?.phone?.replace(/\D/g, '');
+  
+  const message = `
+💰 *ЗАЯВКА НА ПОКУПКУ НОМЕРА*
+━━━━━━━━━━━━━━━━━━
+👤 *Клиент:* ${userData?.full_name || 'Не указано'}
+📱 *Его связь:* +${cleanPhone}
+💎 *НОМЕР:* \`${phoneData.number}\`
+💵 *ЦЕНА:* ${phoneData.price.toLocaleString()} ₸
+━━━━━━━━━━━━━━━━━━
+⏰ *Время:* ${new Date().toLocaleString('ru-RU')}
+  `;
+
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { 
+          text: "🔵 Связаться в Telegram", 
+          url: userData?.tg_user_id ? `tg://user?id=${userData.tg_user_id}` : `https://t.me/+${cleanPhone}`
+        }
+      ]
+    ]
+  };
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TG_CHAT_ID,
+        text: message,
+        parse_mode: 'Markdown',
+        reply_markup: keyboard
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+};
+
   // Админка: Добавить номер
   const handleSavePhone = async () => {
     if (!pn || !pr) return alert('Заполните данные');
