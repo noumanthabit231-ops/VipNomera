@@ -1,13 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
-  User as UserIcon, 
-  Crown, 
-  ShoppingBag, 
   Settings, 
   ChevronRight, 
   X, 
-  LogOut, 
   Smartphone,
   Plus,
   Trash2,
@@ -17,42 +13,12 @@ import {
   Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 
-// ВАЖНО: Проверьте путь импорта. Если файл лежит прямо в src, оставьте ./supabase
 import { supabase } from './supabase';
-
-/** --- Utility --- */
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-/** --- Types --- */
-type UserRole = 'ADMIN' | 'USER';
-type SubStatus = 'INACTIVE' | 'PENDING' | 'ACTIVE';
-
-interface Label {
-  id: string;
-  text: string;
-  color: string;
-}
-
-interface Phone {
-  id: string;
-  number: string;
-  price: number;
-  status: 'IN_STOCK' | 'ON_ORDER';
-  labelIds: string[];
-}
-
-interface UserProfile {
-  id: string;
-  email: string;
-  password?: string;
-  role: UserRole;
-  subscription: SubStatus;
-}
+import { cn } from './cn';
+import { Phone, Label, UserProfile } from './types';
+import { PhoneCard } from './components/PhoneCard';
+import { Navigation } from './components/Navigation';
 
 /** --- Local Storage Helpers --- */
 const KEYS = {
@@ -82,7 +48,6 @@ const INITIAL_ADMIN: UserProfile = {
   subscription: 'ACTIVE'
 };
 
-/** --- Components --- */
 
 const Button = ({ children, onClick, variant = 'primary', size = 'md', fullWidth = false, disabled = false, className = "" }: any) => {
   const variants: any = {
