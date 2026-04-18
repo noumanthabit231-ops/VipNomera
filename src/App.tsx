@@ -5,7 +5,9 @@ import {
   ExternalLink,
   Crown,
   Lock,
-  ChevronRight
+  ChevronRight,
+  MessageSquare,
+  ShoppingBag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,7 +34,7 @@ export default function App() {
     ...state 
   } = useGoldenApp() as any;
 
-  // Проверка прав доступа
+  // Проверка прав доступа (Админ или Активный VIP с неистекшим сроком)
   const hasAccess = useMemo(() => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
@@ -54,24 +56,27 @@ export default function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {/* ГЕЙТ 1: Без аккаунта вообще ничего не показываем */}
+            {/* ГЕЙТ 1: Если не залогинен — только вход */}
             {!user ? (
               <AuthView />
             ) : (
               <>
-                {/* Теперь каталог виден ВСЕМ авторизованным */}
+                {/* Каталог виден всем авторизованным (Soft Gate) */}
                 {view === 'catalog' && (
                   <CatalogView {...state} setSelectedPhone={setSelectedPhone} />
                 )}
 
+                {/* Админка */}
                 {view === 'admin' && user.role === 'ADMIN' && (
                   <AdminView {...state} setView={setView} />
                 )}
                 
+                {/* Кабинет (Там теперь плашка со сроком и покупкой) */}
                 {view === 'profile' && (
                   <ProfileView user={user} setView={setView} setUser={setUser} />
                 )}
 
+                {/* Экран покупки подписки */}
                 {view === 'subscription' && (
                   <SubscriptionView 
                     setView={setView} 
@@ -114,38 +119,59 @@ export default function App() {
         </div>
       </nav>
 
-      {/* МОДАЛКА НОМЕРА С КНОПКОЙ-ПРОВЕРКОЙ */}
+      {/* МОДАЛКА ОФОРМЛЕНИЯ НОМЕРА */}
       <BottomSheet 
         isOpen={!!selectedPhone} 
         onClose={() => setSelectedPhone(null)} 
-        title="Детали номера"
+        title="Оформление заказа"
       >
         {selectedPhone && (
           <div className="space-y-8 text-center animate-in fade-in zoom-in duration-300">
-            <div className="bg-gray-50 rounded-[2.5rem] py-10 px-4 border border-gray-100">
-              <h3 className="text-3xl sm:text-5xl font-mono font-bold text-gray-900 tracking-tighter mb-4 italic break-all leading-none">
+            <div className="bg-gray-50 rounded-[2.5rem] py-10 px-4 border border-gray-100 relative overflow-hidden">
+              <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-gray-900">
+                <ShoppingBag size={140} />
+              </div>
+              
+              <h3 className="text-3xl sm:text-5xl font-mono font-bold text-gray-900 tracking-tighter mb-4 italic leading-none relative z-10">
                 {selectedPhone.number}
               </h3>
-              <p className="text-3xl font-black text-[#D4AF37] italic">
+              <p className="text-3xl font-black text-[#D4AF37] italic relative z-10">
                 {selectedPhone.price.toLocaleString()} ₸
               </p>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
               {hasAccess ? (
-                // Если есть подписка — кнопка покупки
-                <Button 
-                  fullWidth 
-                  size="lg" 
-                  className="py-6 text-lg shadow-xl shadow-[#D4AF37]/20" 
-                  onClick={() => window.open(KASPI_PAY_LINK, '_blank')}
-                >
-                  <ExternalLink size={24} className="mr-2" /> Купить через Kaspi
-                </Button>
+                <>
+                  {/* ДЛЯ VIP: Кнопка оплаты и Кнопка подтверждения */}
+                  <Button 
+                    fullWidth 
+                    size="lg" 
+                    className="py-6 text-lg shadow-xl shadow-[#D4AF37]/20" 
+                    onClick={() => window.open(KASPI_PAY_LINK, '_blank')}
+                  >
+                    <ExternalLink size={20} className="mr-2" /> Оплатить через Kaspi
+                  </Button>
+
+                  <Button 
+                    fullWidth 
+                    variant="outline" 
+                    className="py-6 border-gray-100 text-gray-400 hover:text-[#D4AF37] hover:border-[#D4AF37]/20 transition-all"
+                    onClick={async () => {
+                      const ok = await state.sendPurchaseNotification(user, selectedPhone);
+                      if (ok) {
+                        alert("Заявка на номер отправлена! Администратор проверит оплату и свяжется с вами.");
+                        setSelectedPhone(null);
+                      }
+                    }}
+                  >
+                    <MessageSquare size={18} className="mr-2" /> Я оплатил, свяжитесь со мной
+                  </Button>
+                </>
               ) : (
-                // Если нет подписки — кнопка перехода на оплату VIP
+                /* ДЛЯ ОБЫЧНЫХ: Кнопка перехода на покупку VIP */
                 <div className="space-y-4">
-                  <div className="bg-red-50 text-red-500 p-4 rounded-2xl flex items-center justify-center gap-2 border border-red-100">
+                  <div className="bg-orange-50 text-orange-600 p-4 rounded-2xl flex items-center justify-center gap-2 border border-orange-100">
                     <Lock size={16} />
                     <span className="text-[10px] font-black uppercase tracking-widest">Покупка доступна только VIP</span>
                   </div>
@@ -159,13 +185,13 @@ export default function App() {
                       setView('subscription');
                     }}
                   >
-                    <Crown size={20} className="mr-2 text-white" /> Открыть VIP доступ
+                    <Crown size={20} className="mr-2" /> Открыть VIP доступ
                   </Button>
                 </div>
               )}
               
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
-                {hasAccess ? "Безопасный платеж через Kaspi Pay" : "Активируйте VIP, чтобы забрать номер"}
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] pt-2">
+                {hasAccess ? "Подтвердите покупку после перевода средств" : "Активируйте подписку для бронирования"}
               </p>
             </div>
           </div>
