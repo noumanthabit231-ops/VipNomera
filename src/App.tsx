@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Zap
 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { supabase } from './supabase';
