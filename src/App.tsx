@@ -387,62 +387,75 @@ export default function App() {
                     <option value="ON_ORDER">On-Demand Order</option>
                   </select>
                   {/* Блок с кнопками меток и кнопкой добавления */}
-<div className="flex flex-wrap gap-2 pt-2">
-  {labels.map(l => (
-    <button 
-      key={l.id} 
-      onClick={() => setSl(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])}
-      className={cn(
-        "px-3 py-1.5 rounded-full text-[9px] font-black uppercase border transition-all", 
-        sl.includes(l.id) ? "border-white text-white" : "border-white/10 text-gray-600"
-      )}
-      style={sl.includes(l.id) ? { backgroundColor: l.color } : {}}
-    >
-      {l.text}
-    </button>
-  ))}
-</div>
+            {/* Блок выбора меток и кнопка добавления */}
+              <div className="space-y-4">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold mb-2">Присвоить метки:</p>
+                <div className="flex flex-wrap gap-2">
+                  {labels.map(l => (
+                    <button 
+                      key={l.id} 
+                      onClick={() => setSl(prev => prev.includes(l.id) ? prev.filter(x => x !== l.id) : [...prev, l.id])}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-[9px] font-black uppercase border transition-all duration-300", 
+                        sl.includes(l.id) ? "border-[#D4AF37] text-[#D4AF37] bg-[#D4AF37]/5" : "border-white/10 text-zinc-600 hover:border-white/20"
+                      )}
+                      style={sl.includes(l.id) ? { borderColor: l.color, color: l.color } : {}}
+                    >
+                      {l.text}
+                    </button>
+                  ))}
+                </div>
+              
+                <Button 
+                  fullWidth 
+                  className="mt-6 py-4 shadow-xl shadow-[#D4AF37]/5" 
+                  onClick={async () => { 
+                    // Вызов функции сохранения в Supabase
+                    const success = await handleSavePhone({ 
+                      number: pn, 
+                      price: Number(pr), 
+                      status: st, 
+                      labelIds: sl 
+                    }); 
+                    
+                    if (success) {
+                      setPn(''); 
+                      setPr(''); 
+                      setSl([]); 
+                    }
+                  }}
+                >
+                  <Plus size={16}/> Опубликовать в базу
+                </Button>
+              </div>
 
-<Button 
-  fullWidth 
-  className="mt-4" 
-  onClick={async () => { 
-    // Заменяем addPhone на handleSavePhone
-    const success = await handleSavePhone({ 
-      number: pn, 
-      price: Number(pr), 
-      status: st, 
-      labelIds: sl 
-    }); 
-    if (success) {
-      setPn(''); 
-      setPr(''); 
-      setSl([]); 
-    }
-  }}
->
-  <Plus size={16}/> Добавить номер в базу
-</Button>
-
-{/* Список номеров ниже */}
-<div className="space-y-3 mt-6">
-  {phones.map(p => (
-    <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-      <div className="flex flex-col">
-        <span className="font-mono text-sm text-white font-black">{p.number}</span>
-        <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-widest">
-          {p.price.toLocaleString()} ₸
-        </span>
-      </div>
-      {/* Заменяем фильтр массива на вызов handleDeletePhone */}
-      <button 
-        onClick={() => handleDeletePhone(p.id)} 
-        className="p-2 text-red-500/30 hover:text-red-500 transition-colors"
-      >
-        <Trash2 size={16}/>
-      </button>
+{/* Список активных номеров для управления */}
+<div className="space-y-3 mt-10">
+  <h3 className="text-[10px] uppercase tracking-[0.3em] text-zinc-500 font-bold px-1 mb-4">Управление активами</h3>
+  {phones.length === 0 ? (
+    <div className="py-10 text-center border border-dashed border-white/5 rounded-2xl text-zinc-700 text-xs">
+      База данных пуста
     </div>
-  ))}
+  ) : (
+    phones.map(p => (
+      <div key={p.id} className="flex items-center justify-between p-5 bg-[#080808] rounded-2xl border border-white/[0.03] group hover:border-white/10 transition-colors">
+        <div className="flex flex-col">
+          <span className="font-display text-sm text-white tracking-widest">{p.number}</span>
+          <span className="text-[10px] text-[#B38728] font-bold uppercase tracking-widest mt-1">
+            {p.price.toLocaleString('ru-RU')} ₸
+          </span>
+        </div>
+        
+        <button 
+          onClick={() => handleDeletePhone(p.id)} 
+          className="p-2 text-zinc-800 hover:text-red-500 transition-all duration-300 transform hover:scale-110"
+          title="Удалить из базы"
+        >
+          <Trash2 size={18}/>
+        </button>
+      </div>
+    ))
+  )}
 </div>
 
           {tab === 'labels' && (
