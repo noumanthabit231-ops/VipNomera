@@ -45,35 +45,35 @@ export const useGoldenApp = () => {
 
   // Обновление данных юзера (Проверка подписки) — ИСПРАВЛЕНО
   const refreshUserData = useCallback(async () => {
-    if (!user?.phone) return;
+  if (!user?.phone) return;
+  
+  const cleanPhone = user.phone.replace(/\D/g, '');
+
+  const { data, error } = await supabase
+    .from('auth_codes')
+    // ОБЯЗАТЕЛЬНО добавь tg_user_id в select:
+    .select('is_verified, name, subscription, expiry_date, tg_user_id') 
+    .ilike('phone', `%${cleanPhone}%`)
+    .eq('is_verified', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (data && !error) {
+    const updatedUser = { 
+      ...user, 
+      full_name: data.name, 
+      subscription: data.subscription || 'INACTIVE',
+      expiry_date: data.expiry_date,
+      tg_user_id: data.tg_user_id // ТЕПЕРЬ ID ПЕРЕДАЕТСЯ В СЕССИЮ
+    };
     
-    // Очищаем номер от плюса и пробелов для корректного поиска
-    const cleanPhone = user.phone.replace(/\D/g, '');
-
-    const { data, error } = await supabase
-      .from('auth_codes')
-      .select('is_verified, name, subscription, expiry_date')
-      .ilike('phone', `%${cleanPhone}%`) // Более гибкий поиск
-      .eq('is_verified', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (data && !error) {
-      const updatedUser = { 
-        ...user, 
-        full_name: data.name, 
-        subscription: data.subscription || 'INACTIVE',
-        expiry_date: data.expiry_date
-      };
-      
-      // Обновляем стейт только если данные реально изменились
-      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
-        setUser(updatedUser);
-        localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
-      }
+    if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
+      setUser(updatedUser);
+      localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
     }
-  }, [user]);
+  }
+}, [user]);
 
   // Уведомление в Telegram об оплате
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
