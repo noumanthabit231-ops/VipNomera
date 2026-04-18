@@ -1,3 +1,4 @@
+import React from 'react'; // Добавили для стабильности
 import { Search } from 'lucide-react';
 import { cn } from '../cn';
 import { PhoneCard } from '../components/PhoneCard';
@@ -27,7 +28,7 @@ export const CatalogView = ({ filteredPhones, labels, searchQuery, setSearchQuer
         >
           Все
         </button>
-        {labels.map((l: any) => (
+        {(labels || []).map((l: any) => (
           <button 
             key={l.id} 
             onClick={() => setActiveLabelFilter(l.id === activeLabelFilter ? null : l.id)} 
@@ -40,7 +41,7 @@ export const CatalogView = ({ filteredPhones, labels, searchQuery, setSearchQuer
     </div>
 
     <div className="grid grid-cols-1 gap-5">
-      {filteredPhones.map((phone: any) => (
+      {(filteredPhones || []).map((phone: any) => (
         <PhoneCard key={phone.id} phone={phone} labels={labels} onClick={() => setSelectedPhone(phone)} />
       ))}
     </div>
