@@ -39,7 +39,16 @@ export const AdminView = ({
   const handleSaveEdit = async () => {
     setIsSaving(true);
 
-    // 1. Отправляем изменения в базу
+    // ⚡️ 1. МГНОВЕННО МЕНЯЕМ В ИНТЕРФЕЙСЕ (чтобы ты сразу видел результат)
+    const phoneToUpdate = phones.find((p: any) => p.id === editingId);
+    if (phoneToUpdate) {
+      phoneToUpdate.number = editPn;
+      phoneToUpdate.price = Number(editPr);
+      phoneToUpdate.status = editSt;
+      phoneToUpdate.label_ids = editSl; // Метка применяется моментально!
+    }
+
+    // ⚡️ 2. Отправляем в базу
     const { error } = await supabase.from('phones').update({ 
       number: editPn, 
       price: Number(editPr), 
@@ -48,11 +57,8 @@ export const AdminView = ({
     }).eq('id', editingId);
 
     if (error) {
-      alert("Ошибка при сохранении: " + error.message);
+      alert("Ошибка при сохранении в БД: " + error.message);
     } else {
-      // 2. ЖДЕМ пока скачаются свежие данные с базы
-      if (fetchData) await fetchData(); 
-      // 3. Только после этого закрываем редактор
       setEditingId(null);
     }
     
