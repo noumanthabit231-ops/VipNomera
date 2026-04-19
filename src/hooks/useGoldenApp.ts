@@ -49,11 +49,16 @@ export const useGoldenApp = () => {
   const cleanPhone = user.phone.replace(/\D/g, '');
 
   const { data, error } = await supabase
-    .from('auth_codes')
-    .select('is_verified, name, role, subscription, expiry_date, tg_user_id') // Тянем всё!
-    .ilike('phone', `%${cleanPhone}%`)
-    .eq('is_verified', true)
-    .single();
+  .from('auth_codes')
+  .select('role, subscription, expiry_date, name, tg_user_id')
+  .eq('phone', cleanPhone)
+  .eq('is_verified', true)
+  // Сортируем так, чтобы ADMIN и ACTIVE были первыми, а потом по дате
+  .order('role', { ascending: true }) // ADMIN по алфавиту выше, чем USER
+  .order('subscription', { ascending: true }) // ACTIVE выше, чем INACTIVE
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .maybeSingle();
 
   if (data && !error) {
     const updatedUser = { 
