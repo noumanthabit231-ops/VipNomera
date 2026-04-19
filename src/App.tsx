@@ -20,6 +20,7 @@ import { SubscriptionView } from './views/SubscriptionView';
 import { BottomSheet } from './components/ui/BottomSheet';
 import { Button } from './components/ui/Button';
 import { cn } from './cn';
+import { OrderNumberView } from './views/OrderNumberView';
 
 const KASPI_PAY_LINK = "https://pay.kaspi.kz/pay/nlgccild";
 
@@ -63,7 +64,12 @@ export default function App() {
               <>
                 {/* Каталог виден всем авторизованным (Soft Gate) */}
                 {view === 'catalog' && (
-                  <CatalogView {...state} setSelectedPhone={setSelectedPhone} />
+                  <CatalogView {...state} setSelectedPhone={setSelectedPhone} setView={setView} />
+                )}
+
+                {/* Экран заказа кастомного номера */}
+                {view === 'order' && (
+                  <OrderNumberView user={user} setView={setView} />
                 )}
 
                 {/* Админка */}
