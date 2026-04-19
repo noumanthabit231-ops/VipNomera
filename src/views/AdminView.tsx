@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, X, Edit2, Save, Tag, Inbox } from 'lucide-react';
+import { Plus, Trash2, X, Edit2, Save, MessageSquare } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { cn } from '../cn';
 import { supabase } from '../supabase';
@@ -10,6 +10,7 @@ export const AdminView = ({
 }: any) => {
   const [tab, setTab] = useState<'orders' | 'phones' | 'labels'>('phones');
   
+  // Состояния для редактирования
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPn, setEditPn] = useState('');
   const [editPr, setEditPr] = useState('');
@@ -27,17 +28,25 @@ export const AdminView = ({
     }
   }, [tab]);
 
+  // ФУНКЦИЯ НАЧАЛА РЕДАКТИРОВАНИЯ (Из-за нее была ошибка)
+  const startEdit = (p: any) => {
+    setEditingId(p.id); 
+    setEditPn(p.number); 
+    setEditPr(p.price.toString());
+    setEditSt(p.status); 
+    setEditSl(p.label_ids || []);
+  };
+
   const handleSaveEdit = async () => {
     const { error } = await supabase.from('phones').update({ 
       number: editPn, 
       price: Number(editPr), 
       status: editSt, 
-      label_ids: editSl // Теперь базе есть куда это сохранять!
+      label_ids: editSl 
     }).eq('id', editingId);
 
     if (error) {
       alert("Ошибка при сохранении: " + error.message);
-      console.error(error);
     } else {
       setEditingId(null);
       fetchData();
@@ -56,7 +65,6 @@ export const AdminView = ({
 
     if (error) {
       alert("Ошибка при создании: " + error.message);
-      console.error(error);
     } else {
       setPn(''); setPr(''); setSl([]);
       fetchData();
@@ -89,7 +97,6 @@ export const AdminView = ({
     else setter([...currentList, labelId]);
   };
 
-  // Общие стили для инпутов в темной теме
   const inputClass = "w-full bg-[#1A1A1A] border-2 border-gray-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-[#D4AF37]/50 transition-all placeholder:text-gray-600";
 
   return (
@@ -100,7 +107,7 @@ export const AdminView = ({
         <button onClick={() => setView('profile')} className="p-2 text-gray-400 bg-[#111] hover:bg-gray-800 rounded-full transition-colors border border-gray-800"><X size={20}/></button>
       </div>
       
-      {/* Навигация вкладок */}
+      {/* Навигация */}
       <div className="flex gap-2 bg-[#111] p-1.5 rounded-[2rem] border border-gray-800 mx-2">
         {(['orders', 'phones', 'labels'] as const).map(t => (
           <button 
@@ -121,11 +128,10 @@ export const AdminView = ({
         {tab === 'phones' && (
           <div className="space-y-6">
             
-            {/* Создание лота */}
             <div className="bg-[#111] p-6 rounded-[2rem] border border-gray-800 shadow-2xl shadow-black">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] mb-4">Создать новый лот</h3>
               <div className="space-y-4">
-                <input placeholder="Номер телефона (например: 777 000 7777)" className={inputClass} value={pn} onChange={e => setPn(e.target.value)} />
+                <input placeholder="Номер (например: 777 000 77 77)" className={inputClass} value={pn} onChange={e => setPn(e.target.value)} />
                 <input type="number" placeholder="Стоимость (₸)" className={inputClass} value={pr} onChange={e => setPr(e.target.value)} />
                 
                 <div className="grid grid-cols-2 gap-3">
@@ -154,7 +160,6 @@ export const AdminView = ({
               </div>
             </div>
 
-            {/* Список номеров */}
             <div className="space-y-4">
               {phones.map((p: any) => (
                 <div key={p.id} className="p-5 bg-[#111] rounded-[1.5rem] border border-gray-800 shadow-lg">
@@ -166,13 +171,22 @@ export const AdminView = ({
                         <option value="IN_STOCK">В наличии</option>
                         <option value="ON_ORDER">На заказ</option>
                       </select>
-                      <div className="flex flex-wrap gap-2">
-                        {labels.map((l: any) => (
-                          <button key={l.id} onClick={() => toggleLabel(l.id, true)} className={cn("px-3 py-1.5 rounded-lg text-[9px] font-bold border", editSl.includes(l.id) ? "border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]" : "border-gray-800 bg-[#1A1A1A] text-gray-500")}>
-                            {l.text}
-                          </button>
-                        ))}
-                      </div>
+                      
+                      {/* МЕТКИ ПРИ РЕДАКТИРОВАНИИ */}
+                      {labels.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {labels.map((l: any) => (
+                            <button 
+                              key={l.id} 
+                              onClick={() => toggleLabel(l.id, true)} 
+                              className={cn("px-3 py-1.5 rounded-lg text-[9px] font-bold border", editSl.includes(l.id) ? "border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]" : "border-gray-800 bg-[#1A1A1A] text-gray-500")}
+                            >
+                              {l.text}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      
                       <div className="flex gap-2">
                         <Button fullWidth onClick={handleSaveEdit} className="py-4 bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30"><Save size={16} className="mr-2"/> Сохранить</Button>
                         <button onClick={() => setEditingId(null)} className="px-5 bg-[#1A1A1A] border border-gray-800 rounded-xl text-gray-400 hover:text-white"><X size={16}/></button>
