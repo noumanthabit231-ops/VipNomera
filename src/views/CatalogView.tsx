@@ -11,7 +11,7 @@ export const CatalogView = ({
   return (
     <div className="pt-8 space-y-6 pb-20 animate-in fade-in duration-500 selection:bg-[#D4AF37]/30">
       
-      {/* Шапка Кабинета */}
+      {/* Шапка */}
       <div className="flex items-center justify-between px-2">
         <div>
           <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none mb-1">
@@ -44,7 +44,7 @@ export const CatalogView = ({
         </button>
       </div>
 
-      {/* Фильтры */}
+      {/* Фильтры по меткам */}
       <div className="flex overflow-x-auto hide-scrollbar gap-2 px-2 pb-1">
         <button 
           onClick={() => setActiveLabelFilter(null)}
@@ -73,7 +73,7 @@ export const CatalogView = ({
         ))}
       </div>
 
-      {/* Кнопка спецзаказа */}
+      {/* Спецзаказ */}
       <div className="px-2">
         <button 
           onClick={() => setView('order')}
@@ -84,25 +84,19 @@ export const CatalogView = ({
         </button>
       </div>
 
-      {/* СЕТКА LUXURY SIM-КАРТ */}
+      {/* Сетка карточек */}
       <div className="grid grid-cols-1 gap-5 px-2">
         {filteredPhones.map((phone: any) => (
-          
           <div 
             key={phone.id} 
             className="relative overflow-hidden bg-[#0A0A0A] border-2 border-white/5 rounded-[1.8rem] p-6 shadow-[0_20px_40px_rgba(0,0,0,0.4)] group transition-all duration-500 hover:border-[#D4AF37]/30 active:scale-[0.98]"
           >
-            {/* Премиальный градиент фона */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#121212] via-[#080808] to-[#050505] group-hover:from-[#161616] group-hover:via-[#0A0A0A] transition-colors duration-500" />
             
-            {/* Тонкий золотой отблеск по контуру на ховере */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[linear-gradient(45deg,transparent_25%,rgba(212,175,55,0.03)_50%,transparent_75%)]" />
-
             <div className="relative z-20 flex flex-col h-full">
               
               <div className="flex justify-between items-start mb-6">
-                
-                {/* 💳 ВЫРАЗИТЕЛЬНАЯ SIM КАРТА */}
+                {/* SIM КАРТА */}
                 <div 
                   className="relative w-16 h-24 bg-[#111] flex items-center justify-center shadow-2xl border border-[#D4AF37]/30 group-hover:border-[#D4AF37]/60 transition-all"
                   style={{ 
@@ -110,36 +104,28 @@ export const CatalogView = ({
                     clipPath: 'polygon(0 0, 70% 0, 100% 18%, 100% 100%, 0 100%)',
                   }}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-tr from-black via-white/[0.02] to-transparent" />
-
-                  {/* 🌟 ЖИРНЫЙ ЗОЛОТОЙ ЧИП */}
-                  <div className="w-10 h-12 bg-gradient-to-br from-[#F9D423] via-[#D4AF37] to-[#8C7323] rounded-md p-[1.5px] relative shadow-[0_0_15px_rgba(212,175,55,0.2)] z-10 group-hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all">
-                    
+                  <div className="w-10 h-12 bg-gradient-to-br from-[#F9D423] via-[#D4AF37] to-[#8C7323] rounded-md p-[1.5px] relative z-10">
                     <div className="w-full h-full grid grid-cols-2 grid-rows-3 gap-[1px] bg-black/50 rounded-[4px] overflow-hidden">
-                      <div className="bg-gradient-to-br from-[#F9D423] to-[#D4AF37] opacity-95"></div>
-                      <div className="bg-gradient-to-bl from-[#F9D423] to-[#D4AF37] opacity-95"></div>
-                      <div className="bg-gradient-to-r from-[#D4AF37] to-[#B58B22] opacity-95"></div>
-                      <div className="bg-gradient-to-l from-[#D4AF37] to-[#B58B22] opacity-95"></div>
-                      <div className="bg-gradient-to-tr from-[#B58B22] to-[#8C7323] opacity-95"></div>
-                      <div className="bg-gradient-to-tl from-[#B58B22] to-[#8C7323] opacity-95"></div>
+                       {/* Чип */}
+                       <div className="bg-[#D4AF37]/80" /><div className="bg-[#D4AF37]/80" />
+                       <div className="bg-[#D4AF37]/80" /><div className="bg-[#D4AF37]/80" />
+                       <div className="bg-[#D4AF37]/80 col-span-2" />
                     </div>
-
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-6 border-[1px] border-black/40 rounded-full z-10"></div>
                   </div>
                 </div>
                 
-                {/* Бейдж статуса */}
+                {/* Статус */}
                 <div className={cn(
                   "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border-2 shadow-lg",
                   phone.status === 'IN_STOCK' 
-                    ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/40 shadow-[#D4AF37]/5" 
+                    ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/40" 
                     : "bg-[#111] text-gray-500 border-white/5"
                 )}>
                   {phone.status === 'IN_STOCK' ? 'В наличии' : 'Бронь'}
                 </div>
               </div>
 
-              {/* НОМЕР (Жирный золотой градиент) */}
+              {/* НОМЕР */}
               <div className="mb-6">
                 <p className="text-[#D4AF37]/60 text-[9px] font-black uppercase tracking-[0.5em] mb-2 pl-1">
                   Premium Number
@@ -147,20 +133,41 @@ export const CatalogView = ({
                 <h3 className="text-[2.8rem] sm:text-[3.2rem] font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#FFEFA1] via-[#D4AF37] to-[#B58B22] leading-none drop-shadow-[0_4px_15px_rgba(212,175,55,0.3)]">
                   {phone.number}
                 </h3>
+
+                {/* ДИНАМИЧЕСКИЕ МЕТКИ ТУТ */}
+                <div className="flex flex-wrap gap-2 mt-3 pl-1">
+                  {phone.label_ids && phone.label_ids.map((labelId: string) => {
+                    const label = labels.find((l: any) => l.id === labelId);
+                    if (!label) return null;
+                    return (
+                      <span 
+                        key={label.id}
+                        className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border"
+                        style={{ 
+                          backgroundColor: `${label.color}15`, // Прозрачность 15%
+                          color: label.color,
+                          borderColor: `${label.color}30` // Прозрачность 30%
+                        }}
+                      >
+                        {label.text}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* ФУТЕР: Цена и Кнопка */}
+              {/* ФУТЕР */}
               <div className="flex items-center justify-between pt-5 border-t border-white/5">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest opacity-60 mb-1">Стоимость</span>
-                  <span className="text-[1.7rem] font-black italic tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-gray-400">
+                  <span className="text-[1.7rem] font-black italic tracking-tight text-white">
                     {phone.price.toLocaleString()} ₸
                   </span>
                 </div>
                 
                 <button 
                   onClick={() => setSelectedPhone(phone)}
-                  className="px-8 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#B58B22] hover:from-[#FFEFA1] hover:to-[#D4AF37] text-black text-[11px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-[0_10px_25px_rgba(212,175,55,0.2)] active:scale-95"
+                  className="px-8 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black text-[11px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-[0_10px_25px_rgba(212,175,55,0.2)] active:scale-95"
                 >
                   Оформить
                 </button>
