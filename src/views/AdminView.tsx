@@ -28,23 +28,39 @@ export const AdminView = ({
   }, [tab]);
 
   const handleSaveEdit = async () => {
-    await supabase.from('phones').update({ 
-      number: editPn, price: Number(editPr), status: editSt, label_ids: editSl 
+    const { error } = await supabase.from('phones').update({ 
+      number: editPn, 
+      price: Number(editPr), 
+      status: editSt, 
+      label_ids: editSl // Теперь базе есть куда это сохранять!
     }).eq('id', editingId);
-    setEditingId(null);
-    fetchData();
-  };
 
-  const startEdit = (p: any) => {
-    setEditingId(p.id); setEditPn(p.number); setEditPr(p.price.toString());
-    setEditSt(p.status); setEditSl(p.label_ids || []);
+    if (error) {
+      alert("Ошибка при сохранении: " + error.message);
+      console.error(error);
+    } else {
+      setEditingId(null);
+      fetchData();
+    }
   };
 
   const handleCreatePhone = async () => {
     if (!pn || !pr) return alert('Заполните номер и цену');
-    await supabase.from('phones').insert([{ number: pn, price: Number(pr), status: st, label_ids: sl }]);
-    setPn(''); setPr(''); setSl([]);
-    fetchData();
+    
+    const { error } = await supabase.from('phones').insert([{ 
+      number: pn, 
+      price: Number(pr), 
+      status: st, 
+      label_ids: sl 
+    }]);
+
+    if (error) {
+      alert("Ошибка при создании: " + error.message);
+      console.error(error);
+    } else {
+      setPn(''); setPr(''); setSl([]);
+      fetchData();
+    }
   };
 
   const handleDeletePhone = async (id: string) => {
