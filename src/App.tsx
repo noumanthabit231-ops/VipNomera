@@ -51,46 +51,40 @@ export default function App() {
       <main className="max-w-xl mx-auto px-5 min-h-screen pb-32">
         <AnimatePresence mode="wait">
           <motion.div
-            key={view + (user ? 'auth' : 'noauth')}
+            key={view + (user ? '-auth' : '-guest')}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {/* ГЕЙТ 1: Если не залогинен — только вход */}
-            {!user ? (
+            {/* 1. КАТАЛОГ: Виден абсолютно всем (и гостям, и юзерам) */}
+            {view === 'catalog' && (
+              <CatalogView {...state} setSelectedPhone={setSelectedPhone} setView={setView} />
+            )}
+
+            {/* 2. АВТОРИЗАЦИЯ: Показываем, если юзер не вошел и выбрал auth */}
+            {view === 'auth' && !user && (
               <AuthView />
-            ) : (
-              <>
-                {/* Каталог виден всем авторизованным (Soft Gate) */}
-                {view === 'catalog' && (
-                  <CatalogView {...state} setSelectedPhone={setSelectedPhone} setView={setView} />
-                )}
+            )}
 
-                {/* Экран заказа кастомного номера */}
-                {view === 'order' && (
-                  <OrderNumberView user={user} setView={setView} />
-                )}
+            {/* 3. ЗАКАЗ НОМЕРА: Требует авторизации */}
+            {view === 'order' && (
+              user ? <OrderNumberView user={user} setView={setView} /> : <AuthView />
+            )}
 
-                {/* Админка */}
-                {view === 'admin' && user.role === 'ADMIN' && (
-                  <AdminView {...state} setView={setView} />
-                )}
-                
-                {/* Кабинет (Там теперь плашка со сроком и покупкой) */}
-                {view === 'profile' && (
-                  <ProfileView user={user} setView={setView} setUser={setUser} />
-                )}
+            {/* 4. АДМИНКА: Только для админов */}
+            {view === 'admin' && user?.role === 'ADMIN' && (
+              <AdminView {...state} setView={setView} />
+            )}
+            
+            {/* 5. КАБИНЕТ: Только для авторизованных */}
+            {view === 'profile' && user && (
+              <ProfileView user={user} setView={setView} setUser={setUser} />
+            )}
 
-                {/* Экран покупки подписки */}
-                {view === 'subscription' && (
-                  <SubscriptionView 
-                    setView={setView} 
-                    user={user}
-                    onNotify={() => state.sendPaymentNotification(user)} 
-                  />
-                )}
-              </>
+            {/* 6. ПОДПИСКА: Требует авторизации */}
+            {view === 'subscription' && (
+              user ? <SubscriptionView setView={setView} user={user} onNotify={() => state.sendPaymentNotification(user)} /> : <AuthView />
             )}
           </motion.div>
         </AnimatePresence>
@@ -133,6 +127,7 @@ export default function App() {
       >
         {selectedPhone && (
           <div className="space-y-8 text-center animate-in fade-in zoom-in duration-300">
+            {/* Карточка номера */}
             <div className="bg-gray-50 rounded-[2.5rem] py-10 px-4 border border-gray-100 relative overflow-hidden">
               <div className="absolute -right-4 -bottom-4 opacity-[0.03] text-gray-900">
                 <ShoppingBag size={140} />
@@ -148,8 +143,8 @@ export default function App() {
             
             <div className="space-y-3">
               {hasAccess ? (
+                // 🟢 СОСТОЯНИЕ 1: У ЮЗЕРА ЕСТЬ VIP
                 <>
-                  {/* ДЛЯ VIP: Кнопка оплаты и Кнопка подтверждения */}
                   <Button 
                     fullWidth 
                     size="lg" 
@@ -173,9 +168,12 @@ export default function App() {
                   >
                     <MessageSquare size={18} className="mr-2" /> Я оплатил, свяжитесь со мной
                   </Button>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] pt-2">
+                    Подтвердите покупку после перевода средств
+                  </p>
                 </>
-              ) : (
-                /* ДЛЯ ОБЫЧНЫХ: Кнопка перехода на покупку VIP */
+              ) : user ? (
+                // 🟠 СОСТОЯНИЕ 2: АВТОРИЗОВАН, НО НЕТ VIP
                 <div className="space-y-4">
                   <div className="bg-orange-50 text-orange-600 p-4 rounded-2xl flex items-center justify-center gap-2 border border-orange-100">
                     <Lock size={16} />
@@ -193,12 +191,33 @@ export default function App() {
                   >
                     <Crown size={20} className="mr-2" /> Открыть VIP доступ
                   </Button>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] pt-2">
+                    Активируйте подписку для бронирования
+                  </p>
+                </div>
+              ) : (
+                // 🔴 СОСТОЯНИЕ 3: ГОСТЬ (НЕ АВТОРИЗОВАН)
+                <div className="space-y-4">
+                  <div className="bg-gray-100 text-gray-500 p-4 rounded-2xl flex items-center justify-center gap-2 border border-gray-200">
+                    <UserIcon size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Требуется авторизация</span>
+                  </div>
+                  <Button 
+                    fullWidth 
+                    size="lg" 
+                    className="py-6 text-lg shadow-xl bg-gray-900 hover:bg-gray-800" 
+                    onClick={() => {
+                      setSelectedPhone(null);
+                      setView('auth');
+                    }}
+                  >
+                    Войти для покупки
+                  </Button>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] pt-2">
+                    Войдите в систему, чтобы продолжить
+                  </p>
                 </div>
               )}
-              
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] pt-2">
-                {hasAccess ? "Подтвердите покупку после перевода средств" : "Активируйте подписку для бронирования"}
-              </p>
             </div>
           </div>
         )}
