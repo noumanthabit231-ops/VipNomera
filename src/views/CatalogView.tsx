@@ -93,6 +93,40 @@ export const CatalogView = ({
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[#121212] via-[#080808] to-[#050505] group-hover:from-[#161616] group-hover:via-[#0A0A0A] transition-colors duration-500" />
             
+            {/* 🌟 ПРАВЫЙ ВЕРХНИЙ УГОЛ (СТАТУС И МЕТКИ КАК ЛЕНТЫ) 🌟 */}
+            <div className="absolute top-5 right-0 flex flex-col items-end gap-2 z-30">
+              
+              {/* Статус лентой */}
+              <div className={cn(
+                "px-4 py-1.5 rounded-l-lg text-[9px] font-black uppercase tracking-[0.2em] border-y border-l border-r-0 shadow-lg",
+                phone.status === 'IN_STOCK' 
+                  ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/40 shadow-[#D4AF37]/5" 
+                  : "bg-[#111] text-gray-500 border-white/5"
+              )}>
+                {phone.status === 'IN_STOCK' ? 'В наличии' : 'Бронь'}
+              </div>
+
+              {/* Цветные метки лентой */}
+              {phone.label_ids && phone.label_ids.map((labelId: string) => {
+                const label = labels.find((l: any) => l.id === labelId);
+                if (!label) return null;
+                return (
+                  <div 
+                    key={label.id}
+                    className="px-4 py-1.5 rounded-l-md text-[9px] font-black uppercase tracking-[0.2em] shadow-lg border-y border-l border-r-0"
+                    style={{ 
+                      backgroundColor: label.color, 
+                      color: '#000', // Черный текст для контраста с ярким фоном
+                      borderColor: `${label.color}`,
+                      boxShadow: `0 4px 15px ${label.color}40`
+                    }}
+                  >
+                    {label.text}
+                  </div>
+                );
+              })}
+            </div>
+
             <div className="relative z-20 flex flex-col h-full">
               
               <div className="flex justify-between items-start mb-6">
@@ -113,16 +147,6 @@ export const CatalogView = ({
                     </div>
                   </div>
                 </div>
-                
-                {/* Статус */}
-                <div className={cn(
-                  "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border-2 shadow-lg",
-                  phone.status === 'IN_STOCK' 
-                    ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/40" 
-                    : "bg-[#111] text-gray-500 border-white/5"
-                )}>
-                  {phone.status === 'IN_STOCK' ? 'В наличии' : 'Бронь'}
-                </div>
               </div>
 
               {/* НОМЕР */}
@@ -133,27 +157,6 @@ export const CatalogView = ({
                 <h3 className="text-[2.8rem] sm:text-[3.2rem] font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#FFEFA1] via-[#D4AF37] to-[#B58B22] leading-none drop-shadow-[0_4px_15px_rgba(212,175,55,0.3)]">
                   {phone.number}
                 </h3>
-
-                {/* ДИНАМИЧЕСКИЕ МЕТКИ ТУТ */}
-                <div className="flex flex-wrap gap-2 mt-3 pl-1">
-                  {phone.label_ids && phone.label_ids.map((labelId: string) => {
-                    const label = labels.find((l: any) => l.id === labelId);
-                    if (!label) return null;
-                    return (
-                      <span 
-                        key={label.id}
-                        className="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border"
-                        style={{ 
-                          backgroundColor: `${label.color}15`, // Прозрачность 15%
-                          color: label.color,
-                          borderColor: `${label.color}30` // Прозрачность 30%
-                        }}
-                      >
-                        {label.text}
-                      </span>
-                    );
-                  })}
-                </div>
               </div>
 
               {/* ФУТЕР */}
