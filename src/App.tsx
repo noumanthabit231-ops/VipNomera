@@ -43,16 +43,17 @@ export default function App() {
   }, [user]);
 
   return (
-    // ТОТАЛЬНЫЙ DARK MODE: Фон черный, текст белый
     <div className="min-h-screen bg-[#050505] text-white selection:bg-[#D4AF37]/30">
       <main className="max-w-xl mx-auto px-5 min-h-screen pb-32">
         <AnimatePresence mode="wait">
+          {/* ОПТИМИЗАЦИЯ ДЛЯ МОБИЛЬНЫХ: Только opacity, без движения по оси Y */}
           <motion.div
             key={view + (user ? '-auth' : '-guest')}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
+            className="will-change-opacity"
           >
             {view === 'catalog' && <CatalogView {...state} setSelectedPhone={setSelectedPhone} setView={setView} />}
             {view === 'auth' && !user && <AuthView />}
@@ -64,8 +65,7 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* DARK НАВИГАЦИЯ */}
-      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-[85%] max-w-sm bg-[#111111]/90 backdrop-blur-2xl rounded-[2.5rem] border border-[#D4AF37]/20 shadow-2xl shadow-[#D4AF37]/5">
+      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-[85%] max-w-sm bg-[#111111]/95 rounded-[2.5rem] border border-[#D4AF37]/20 shadow-2xl shadow-[#D4AF37]/5">
         <div className="flex items-center justify-around h-20">
           <button 
             onClick={() => setView('catalog')} 
@@ -93,7 +93,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* МОДАЛКА В СТИЛЕ DARK LUXURY */}
       <BottomSheet 
         isOpen={!!selectedPhone} 
         onClose={() => setSelectedPhone(null)} 
@@ -102,7 +101,6 @@ export default function App() {
         {selectedPhone && (
           <div className="space-y-8 text-center animate-in fade-in zoom-in duration-300 bg-[#0A0A0A] p-2 rounded-t-3xl -mx-4 -mb-4">
             
-            {/* Карточка в модалке */}
             <div className="bg-[#111] rounded-[2rem] py-10 px-4 border border-[#D4AF37]/30 relative overflow-hidden shadow-2xl shadow-[#D4AF37]/5">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-50" />
               
