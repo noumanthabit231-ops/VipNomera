@@ -1,6 +1,5 @@
 import React from 'react';
 import { Search, SlidersHorizontal, Plus, Crown, PackageSearch } from 'lucide-react';
-import { Button } from '../components/ui/Button';
 import { cn } from '../cn';
 
 export const CatalogView = ({ 
@@ -22,7 +21,7 @@ export const CatalogView = ({
             Номера
           </p>
         </div>
-        <div className="w-12 h-12 bg-gradient-to-br from-[#D4AF37] to-[#8C7323] rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.4)] relative">
+        <div className="w-12 h-12 bg-gradient-to-br from-[#D4AF37] to-[#8C7323] rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(212,175,55,0.3)] relative">
           <div className="absolute inset-0.5 bg-black rounded-full" />
           <Crown className="text-[#D4AF37] relative z-10" size={24} />
         </div>
@@ -36,7 +35,7 @@ export const CatalogView = ({
         <input 
           type="text" 
           placeholder="Найти номер..." 
-          className="w-full bg-[#111] border-2 border-gray-800 rounded-2xl py-4 pl-14 pr-12 text-white font-bold outline-none focus:border-[#D4AF37]/50 focus:bg-[#1A1A1A] transition-all placeholder:text-gray-600"
+          className="w-full bg-[#0F0F0F] border-2 border-gray-800/50 rounded-2xl py-4 pl-14 pr-12 text-white font-bold outline-none focus:border-[#D4AF37]/40 focus:bg-[#151515] transition-all placeholder:text-gray-700 shadow-inner"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -52,8 +51,8 @@ export const CatalogView = ({
           className={cn(
             "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border-2",
             !activeLabelFilter 
-              ? "bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.2)]" 
-              : "bg-[#111] border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-300"
+              ? "bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_10px_20px_rgba(212,175,55,0.15)]" 
+              : "bg-[#0A0A0A] border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-300"
           )}
         >
           Все лоты
@@ -65,8 +64,8 @@ export const CatalogView = ({
             className={cn(
               "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border-2",
               activeLabelFilter === l.id 
-                ? "bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_0_15px_rgba(212,175,55,0.2)]" 
-                : "bg-[#111] border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-300"
+                ? "bg-[#D4AF37] border-[#D4AF37] text-black shadow-[0_10px_20px_rgba(212,175,55,0.15)]" 
+                : "bg-[#0A0A0A] border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-300"
             )}
           >
             {l.text}
@@ -78,92 +77,92 @@ export const CatalogView = ({
       <div className="px-2">
         <button 
           onClick={() => setView('order')}
-          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl border-2 border-dashed border-[#D4AF37]/40 text-[#D4AF37] hover:bg-[#D4AF37]/10 active:scale-[0.98] transition-all bg-[#D4AF37]/5"
+          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl border-2 border-dashed border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10 hover:border-[#D4AF37]/50 active:scale-[0.98] transition-all bg-[#D4AF37]/5"
         >
           <PackageSearch size={18} />
-          <span className="text-[10px] font-black uppercase tracking-widest pt-0.5">Сделать спецзаказ</span>
+          <span className="text-[10px] font-black uppercase tracking-widest pt-0.5">Сделать индивидуальный заказ</span>
         </button>
       </div>
 
-      {/* СЕТКА COMPACT SIM-КАРТ */}
-      <div className="grid grid-cols-1 gap-4 px-2">
+      {/* СЕТКА LUXURY SIM-КАРТ */}
+      <div className="grid grid-cols-1 gap-5 px-2">
         {filteredPhones.map((phone: any) => (
           
           <div 
             key={phone.id} 
-            className="relative overflow-hidden bg-[#0A0A0A] border-2 border-gray-800/80 rounded-[1.5rem] p-5 shadow-2xl group transition-all duration-300 hover:border-[#D4AF37]/40 active:scale-[0.98]"
+            className="relative overflow-hidden bg-[#0A0A0A] border-2 border-white/5 rounded-[1.8rem] p-6 shadow-[0_20px_40px_rgba(0,0,0,0.4)] group transition-all duration-500 hover:border-[#D4AF37]/30 active:scale-[0.98]"
           >
-            {/* Градиент */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#111] to-[#050505] group-hover:from-[#161616] group-hover:to-[#0A0A0A] transition-colors duration-500" />
+            {/* Премиальный градиент фона */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#121212] via-[#080808] to-[#050505] group-hover:from-[#161616] group-hover:via-[#0A0A0A] transition-colors duration-500" />
+            
+            {/* Тонкий золотой отблеск по контуру на ховере */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[linear-gradient(45deg,transparent_25%,rgba(212,175,55,0.03)_50%,transparent_75%)]" />
 
             <div className="relative z-20 flex flex-col h-full">
               
-              {/* ВЕРХНЯЯ ЧАСТЬ: Реалистичная SIM-карта и Статус */}
               <div className="flex justify-between items-start mb-6">
                 
-                {/* 💳 РЕАЛИСТИЧНАЯ SIM КАРТА */}
+                {/* 💳 ВЫРАЗИТЕЛЬНАЯ SIM КАРТА */}
                 <div 
-                  className="relative w-14 h-20 bg-[#1A1A1A] flex items-center justify-center shadow-2xl shadow-black group-hover:bg-[#222] transition-colors"
+                  className="relative w-16 h-24 bg-[#111] flex items-center justify-center shadow-2xl border border-[#D4AF37]/30 group-hover:border-[#D4AF37]/60 transition-all"
                   style={{ 
-                    borderRadius: '8px', 
-                    clipPath: 'polygon(0 0, 70% 0, 100% 20%, 100% 100%, 0 100%)', // Идеальный срез угла
-                    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.05)'
+                    borderRadius: '10px', 
+                    clipPath: 'polygon(0 0, 70% 0, 100% 18%, 100% 100%, 0 100%)',
                   }}
                 >
-                  {/* Текстура пластика */}
-                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white to-transparent mix-blend-overlay"></div>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-black via-white/[0.02] to-transparent" />
 
-                  {/* 🌟 ЗОЛОТОЙ ЧИП */}
-                  <div className="w-9 h-11 bg-gradient-to-br from-[#F9D423] via-[#D4AF37] to-[#8C7323] rounded-md p-[1px] relative shadow-[0_2px_5px_rgba(0,0,0,0.5)] z-10 group-hover:shadow-[0_0_10px_rgba(212,175,55,0.3)] transition-shadow">
+                  {/* 🌟 ЖИРНЫЙ ЗОЛОТОЙ ЧИП */}
+                  <div className="w-10 h-12 bg-gradient-to-br from-[#F9D423] via-[#D4AF37] to-[#8C7323] rounded-md p-[1.5px] relative shadow-[0_0_15px_rgba(212,175,55,0.2)] z-10 group-hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all">
                     
-                    {/* Контакты чипа (6 сегментов) */}
-                    <div className="w-full h-full grid grid-cols-2 grid-rows-3 gap-[1px] bg-black/40 rounded-[5px] overflow-hidden">
-                      <div className="bg-gradient-to-br from-[#F9D423] to-[#D4AF37] opacity-90"></div>
-                      <div className="bg-gradient-to-bl from-[#F9D423] to-[#D4AF37] opacity-90"></div>
-                      <div className="bg-gradient-to-r from-[#D4AF37] to-[#B58B22] opacity-90"></div>
-                      <div className="bg-gradient-to-l from-[#D4AF37] to-[#B58B22] opacity-90"></div>
-                      <div className="bg-gradient-to-tr from-[#B58B22] to-[#8C7323] opacity-90"></div>
-                      <div className="bg-gradient-to-tl from-[#B58B22] to-[#8C7323] opacity-90"></div>
+                    <div className="w-full h-full grid grid-cols-2 grid-rows-3 gap-[1px] bg-black/50 rounded-[4px] overflow-hidden">
+                      <div className="bg-gradient-to-br from-[#F9D423] to-[#D4AF37] opacity-95"></div>
+                      <div className="bg-gradient-to-bl from-[#F9D423] to-[#D4AF37] opacity-95"></div>
+                      <div className="bg-gradient-to-r from-[#D4AF37] to-[#B58B22] opacity-95"></div>
+                      <div className="bg-gradient-to-l from-[#D4AF37] to-[#B58B22] opacity-95"></div>
+                      <div className="bg-gradient-to-tr from-[#B58B22] to-[#8C7323] opacity-95"></div>
+                      <div className="bg-gradient-to-tl from-[#B58B22] to-[#8C7323] opacity-95"></div>
                     </div>
 
-                    {/* Характерный центральный овал на чипе */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-5 border-[1px] border-black/30 rounded-full z-10 pointer-events-none"></div>
-                    <div className="absolute top-1/2 left-0 w-full h-[1px] bg-black/20 z-10 pointer-events-none"></div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-6 border-[1px] border-black/40 rounded-full z-10"></div>
                   </div>
                 </div>
                 
-                {/* Строгий бейдж (Золотой или Серый) */}
+                {/* Бейдж статуса */}
                 <div className={cn(
-                  "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border-2",
+                  "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border-2 shadow-lg",
                   phone.status === 'IN_STOCK' 
-                    ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/30" 
-                    : "bg-gray-800/50 text-gray-400 border-gray-700"
+                    ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/40 shadow-[#D4AF37]/5" 
+                    : "bg-[#111] text-gray-500 border-white/5"
                 )}>
-                  {phone.status === 'IN_STOCK' ? 'В наличии' : 'Предзаказ'}
+                  {phone.status === 'IN_STOCK' ? 'В наличии' : 'Бронь'}
                 </div>
               </div>
 
-              {/* ЦЕНТРАЛЬНАЯ ЧАСТЬ: НОМЕР (Золотой градиент) */}
-              <div className="mb-5">
-                <p className="text-gray-500 text-[9px] font-black uppercase tracking-[0.3em] mb-1 pl-1">
-                  VIP Серия
+              {/* НОМЕР (Жирный золотой градиент) */}
+              <div className="mb-6">
+                <p className="text-[#D4AF37]/60 text-[9px] font-black uppercase tracking-[0.5em] mb-2 pl-1">
+                  Premium Number
                 </p>
-                <h3 className="text-4xl sm:text-[2.5rem] font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#F9D423] via-[#D4AF37] to-[#B58B22] drop-shadow-[0_2px_10px_rgba(212,175,55,0.2)]">
+                <h3 className="text-[2.8rem] sm:text-[3.2rem] font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#FFEFA1] via-[#D4AF37] to-[#B58B22] leading-none drop-shadow-[0_4px_15px_rgba(212,175,55,0.3)]">
                   {phone.number}
                 </h3>
               </div>
 
-              {/* НИЖНЯЯ ЧАСТЬ: Цена и Кнопка */}
-              <div className="flex items-center justify-between pt-4 border-t-2 border-gray-900">
-                <span className="text-2xl font-black text-white italic tracking-tight">
-                  {phone.price.toLocaleString()} ₸
-                </span>
+              {/* ФУТЕР: Цена и Кнопка */}
+              <div className="flex items-center justify-between pt-5 border-t border-white/5">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest opacity-60 mb-1">Стоимость</span>
+                  <span className="text-[1.7rem] font-black italic tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-gray-400">
+                    {phone.price.toLocaleString()} ₸
+                  </span>
+                </div>
                 
                 <button 
                   onClick={() => setSelectedPhone(phone)}
-                  className="px-6 py-3 bg-gradient-to-r from-[#D4AF37] to-[#B58B22] hover:opacity-90 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(212,175,55,0.3)]"
+                  className="px-8 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#B58B22] hover:from-[#FFEFA1] hover:to-[#D4AF37] text-black text-[11px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-[0_10px_25px_rgba(212,175,55,0.2)] active:scale-95"
                 >
-                  Купить
+                  Оформить
                 </button>
               </div>
             </div>
