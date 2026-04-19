@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, SlidersHorizontal, Plus } from 'lucide-react';
+import { Search, SlidersHorizontal, Plus, Crown } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { cn } from '../cn';
 
