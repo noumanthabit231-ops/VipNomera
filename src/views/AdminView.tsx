@@ -15,6 +15,7 @@ export const AdminView = ({
   const [editPr, setEditPr] = useState('');
   const [editSt, setEditSt] = useState('');
   const [editSl, setEditSl] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false); // Состояние загрузки при сохранении
 
   const [orders, setOrders] = useState<any[]>([]);
   const [newLabelText, setNewLabelText] = useState('');
@@ -36,17 +37,9 @@ export const AdminView = ({
   };
 
   const handleSaveEdit = async () => {
-    // ⚡️ 1. МГНОВЕННОЕ ОБНОВЛЕНИЕ ЛОКАЛЬНОГО СТЕЙТА (без ожидания БД)
-    const phoneToUpdate = phones.find((p: any) => p.id === editingId);
-    if (phoneToUpdate) {
-      phoneToUpdate.number = editPn;
-      phoneToUpdate.price = Number(editPr);
-      phoneToUpdate.status = editSt;
-      phoneToUpdate.label_ids = editSl;
-    }
-    setEditingId(null);
+    setIsSaving(true);
 
-    // ⚡️ 2. Отправка в фоне в базу данных
+    // 1. Отправляем изменения в базу
     const { error } = await supabase.from('phones').update({ 
       number: editPn, 
       price: Number(editPr), 
@@ -56,26 +49,38 @@ export const AdminView = ({
 
     if (error) {
       alert("Ошибка при сохранении: " + error.message);
+    } else {
+      // 2. ЖДЕМ пока скачаются свежие данные с базы
+      if (fetchData) await fetchData(); 
+      // 3. Только после этого закрываем редактор
+      setEditingId(null);
     }
-    // Вызываем fetchData для синхронизации, но пользователь уже видит результат!
-    fetchData();
+    
+    setIsSaving(false);
   };
 
   const handleCreatePhone = async () => {
     if (!pn || !pr) return alert('Заполните номер и цену');
-    const { error } = await supabase.from('phones').insert([{ number: pn, price: Number(pr), status: st, label_ids: sl }]);
-    if (error) alert("Ошибка при создании: " + error.message);
-    else { setPn(''); setPr(''); setSl([]); fetchData(); }
+    
+    const { error } = await supabase.from('phones').insert([{ 
+      number: pn, 
+      price: Number(pr), 
+      status: st, 
+      label_ids: sl 
+    }]);
+
+    if (error) {
+      alert("Ошибка при создании: " + error.message);
+    } else {
+      setPn(''); setPr(''); setSl([]);
+      if (fetchData) await fetchData();
+    }
   };
 
   const handleDeletePhone = async (id: string) => {
     if (confirm('Удалить номер?')) {
-      // Оптимистичное удаление
-      const index = phones.findIndex((p:any) => p.id === id);
-      if(index > -1) phones.splice(index, 1);
-      
       await supabase.from('phones').delete().eq('id', id);
-      fetchData();
+      if (fetchData) await fetchData();
     }
   };
 
@@ -83,19 +88,21 @@ export const AdminView = ({
     if (!newLabelText) return;
     const { error } = await supabase.from('labels').insert([{ text: newLabelText, color: newLabelColor }]);
     if (error) alert("Ошибка: " + error.message);
-    else { setNewLabelText(''); fetchData(); }
+    else { setNewLabelText(''); if (fetchData) await fetchData(); }
   };
 
   const handleDeleteLabel = async (id: string) => {
     await supabase.from('labels').delete().eq('id', id);
-    fetchData();
+    if (fetchData) await fetchData();
   };
 
+  // Безопасное переключение меток
   const toggleLabel = (labelId: string, isEditing: boolean) => {
-    const currentList = isEditing ? editSl : sl;
-    const setter = isEditing ? setEditSl : setSl;
-    if (currentList.includes(labelId)) setter(currentList.filter(id => id !== labelId));
-    else setter([...currentList, labelId]);
+    if (isEditing) {
+      setEditSl(prev => prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]);
+    } else {
+      setSl(prev => prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]);
+    }
   };
 
   const inputClass = "w-full bg-[#1A1A1A] border-2 border-gray-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-[#D4AF37]/50 transition-all placeholder:text-gray-600";
@@ -170,7 +177,9 @@ export const AdminView = ({
                       )}
                       
                       <div className="flex gap-2">
-                        <Button fullWidth onClick={handleSaveEdit} className="py-4 bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30"><Save size={16} className="mr-2"/> Сохранить</Button>
+                        <Button fullWidth disabled={isSaving} onClick={handleSaveEdit} className="py-4 bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30">
+                          {isSaving ? 'Сохранение...' : <><Save size={16} className="mr-2"/> Сохранить</>}
+                        </Button>
                         <button onClick={() => setEditingId(null)} className="px-5 bg-[#1A1A1A] border border-gray-800 rounded-xl text-gray-400 hover:text-white"><X size={16}/></button>
                       </div>
                     </div>
