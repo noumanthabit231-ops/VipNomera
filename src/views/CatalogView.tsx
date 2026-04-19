@@ -74,7 +74,7 @@ export const CatalogView = ({
         ))}
       </div>
 
-      {/* Кнопка заказа (стала компактнее) */}
+      {/* Кнопка спецзаказа */}
       <div className="px-2">
         <button 
           onClick={() => setView('order')}
@@ -98,31 +98,41 @@ export const CatalogView = ({
 
             <div className="relative z-20 flex flex-col h-full">
               
-              {/* ВЕРХНЯЯ ЧАСТЬ: SIM-карта и Статус */}
-              <div className="flex justify-between items-start mb-5">
+              {/* ВЕРХНЯЯ ЧАСТЬ: Реалистичная SIM-карта и Статус */}
+              <div className="flex justify-between items-start mb-6">
                 
-                {/* Компактная "выламываемая" SIM */}
-                <div className="relative border-2 border-[#D4AF37]/50 rounded-lg bg-[#050505] w-[4.5rem] h-24 p-1 flex items-center justify-center group-hover:border-[#D4AF37] transition-colors shadow-inner">
-                  
-                  {/* Срез угла (Mini-SIM) */}
-                  <div className="absolute top-0 right-0 w-6 h-6 bg-[#111] transform rotate-45 translate-x-3 -translate-y-3 border-l-2 border-b-2 border-gray-800 z-10 group-hover:border-[#D4AF37]/40 transition-colors"></div>
-                  
-                  {/* Чип (Матрешка) */}
-                  <div className="w-full h-full border-2 border-dashed border-[#D4AF37]/30 rounded-md flex items-center justify-center p-0.5 relative z-20">
-                    <div className="w-full h-full border border-[#D4AF37]/50 rounded-sm bg-gradient-to-br from-[#D4AF37]/20 to-transparent p-[1px] relative flex items-center justify-center">
-                      <div className="absolute top-0 right-0 w-2 h-2 bg-black transform rotate-45 translate-x-1 -translate-y-1 border-l border-b border-[#D4AF37]/40 z-20"></div>
-                      <div className="w-full h-[60%] grid grid-cols-2 grid-rows-3 gap-[1px] opacity-80">
-                        <div className="border border-[#D4AF37]/50" />
-                        <div className="border border-[#D4AF37]/50" />
-                        <div className="border border-[#D4AF37]/50" />
-                        <div className="border border-[#D4AF37]/50" />
-                        <div className="border border-[#D4AF37]/50 col-span-2" />
-                      </div>
+                {/* 💳 РЕАЛИСТИЧНАЯ SIM КАРТА */}
+                <div 
+                  className="relative w-14 h-20 bg-[#1A1A1A] flex items-center justify-center shadow-2xl shadow-black group-hover:bg-[#222] transition-colors"
+                  style={{ 
+                    borderRadius: '8px', 
+                    clipPath: 'polygon(0 0, 70% 0, 100% 20%, 100% 100%, 0 100%)', // Идеальный срез угла
+                    boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.05)'
+                  }}
+                >
+                  {/* Текстура пластика */}
+                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white to-transparent mix-blend-overlay"></div>
+
+                  {/* 🌟 ЗОЛОТОЙ ЧИП */}
+                  <div className="w-9 h-11 bg-gradient-to-br from-[#F9D423] via-[#D4AF37] to-[#8C7323] rounded-md p-[1px] relative shadow-[0_2px_5px_rgba(0,0,0,0.5)] z-10 group-hover:shadow-[0_0_10px_rgba(212,175,55,0.3)] transition-shadow">
+                    
+                    {/* Контакты чипа (6 сегментов) */}
+                    <div className="w-full h-full grid grid-cols-2 grid-rows-3 gap-[1px] bg-black/40 rounded-[5px] overflow-hidden">
+                      <div className="bg-gradient-to-br from-[#F9D423] to-[#D4AF37] opacity-90"></div>
+                      <div className="bg-gradient-to-bl from-[#F9D423] to-[#D4AF37] opacity-90"></div>
+                      <div className="bg-gradient-to-r from-[#D4AF37] to-[#B58B22] opacity-90"></div>
+                      <div className="bg-gradient-to-l from-[#D4AF37] to-[#B58B22] opacity-90"></div>
+                      <div className="bg-gradient-to-tr from-[#B58B22] to-[#8C7323] opacity-90"></div>
+                      <div className="bg-gradient-to-tl from-[#B58B22] to-[#8C7323] opacity-90"></div>
                     </div>
+
+                    {/* Характерный центральный овал на чипе */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-5 border-[1px] border-black/30 rounded-full z-10 pointer-events-none"></div>
+                    <div className="absolute top-1/2 left-0 w-full h-[1px] bg-black/20 z-10 pointer-events-none"></div>
                   </div>
                 </div>
                 
-                {/* Строгий бейдж (без зеленого цвета) */}
+                {/* Строгий бейдж (Золотой или Серый) */}
                 <div className={cn(
                   "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border-2",
                   phone.status === 'IN_STOCK' 
@@ -145,7 +155,6 @@ export const CatalogView = ({
 
               {/* НИЖНЯЯ ЧАСТЬ: Цена и Кнопка */}
               <div className="flex items-center justify-between pt-4 border-t-2 border-gray-900">
-                {/* Теперь цена белая, чтобы контрастировать с золотым номером */}
                 <span className="text-2xl font-black text-white italic tracking-tight">
                   {phone.price.toLocaleString()} ₸
                 </span>
