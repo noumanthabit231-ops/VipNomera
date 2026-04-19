@@ -10,7 +10,6 @@ export const AdminView = ({
 }: any) => {
   const [tab, setTab] = useState<'orders' | 'phones' | 'labels'>('phones');
   
-  // Состояния для редактирования
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPn, setEditPn] = useState('');
   const [editPr, setEditPr] = useState('');
@@ -28,7 +27,6 @@ export const AdminView = ({
     }
   }, [tab]);
 
-  // ФУНКЦИЯ НАЧАЛА РЕДАКТИРОВАНИЯ (Из-за нее была ошибка)
   const startEdit = (p: any) => {
     setEditingId(p.id); 
     setEditPn(p.number); 
@@ -38,6 +36,17 @@ export const AdminView = ({
   };
 
   const handleSaveEdit = async () => {
+    // ⚡️ 1. МГНОВЕННОЕ ОБНОВЛЕНИЕ ЛОКАЛЬНОГО СТЕЙТА (без ожидания БД)
+    const phoneToUpdate = phones.find((p: any) => p.id === editingId);
+    if (phoneToUpdate) {
+      phoneToUpdate.number = editPn;
+      phoneToUpdate.price = Number(editPr);
+      phoneToUpdate.status = editSt;
+      phoneToUpdate.label_ids = editSl;
+    }
+    setEditingId(null);
+
+    // ⚡️ 2. Отправка в фоне в базу данных
     const { error } = await supabase.from('phones').update({ 
       number: editPn, 
       price: Number(editPr), 
@@ -47,32 +56,24 @@ export const AdminView = ({
 
     if (error) {
       alert("Ошибка при сохранении: " + error.message);
-    } else {
-      setEditingId(null);
-      fetchData();
     }
+    // Вызываем fetchData для синхронизации, но пользователь уже видит результат!
+    fetchData();
   };
 
   const handleCreatePhone = async () => {
     if (!pn || !pr) return alert('Заполните номер и цену');
-    
-    const { error } = await supabase.from('phones').insert([{ 
-      number: pn, 
-      price: Number(pr), 
-      status: st, 
-      label_ids: sl 
-    }]);
-
-    if (error) {
-      alert("Ошибка при создании: " + error.message);
-    } else {
-      setPn(''); setPr(''); setSl([]);
-      fetchData();
-    }
+    const { error } = await supabase.from('phones').insert([{ number: pn, price: Number(pr), status: st, label_ids: sl }]);
+    if (error) alert("Ошибка при создании: " + error.message);
+    else { setPn(''); setPr(''); setSl([]); fetchData(); }
   };
 
   const handleDeletePhone = async (id: string) => {
     if (confirm('Удалить номер?')) {
+      // Оптимистичное удаление
+      const index = phones.findIndex((p:any) => p.id === id);
+      if(index > -1) phones.splice(index, 1);
+      
       await supabase.from('phones').delete().eq('id', id);
       fetchData();
     }
@@ -110,14 +111,7 @@ export const AdminView = ({
       {/* Навигация */}
       <div className="flex gap-2 bg-[#111] p-1.5 rounded-[2rem] border border-gray-800 mx-2">
         {(['orders', 'phones', 'labels'] as const).map(t => (
-          <button 
-            key={t} 
-            onClick={() => setTab(t)} 
-            className={cn(
-              "flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all", 
-              tab === t ? "bg-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20" : "text-gray-500 hover:text-gray-300"
-            )}
-          >
+          <button key={t} onClick={() => setTab(t)} className={cn("flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all", tab === t ? "bg-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20" : "text-gray-500 hover:text-gray-300")}>
             {t === 'orders' ? 'Заявки' : t === 'phones' ? 'Номера' : 'Метки'}
           </button>
         ))}
@@ -144,13 +138,7 @@ export const AdminView = ({
                     <p className="text-[10px] uppercase font-black text-gray-500 tracking-widest mb-3">Прикрепить метки:</p>
                     <div className="flex flex-wrap gap-2">
                       {labels.map((l: any) => (
-                        <button 
-                          key={l.id} 
-                          onClick={() => toggleLabel(l.id, false)}
-                          className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border", sl.includes(l.id) ? "border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]" : "border-gray-800 bg-[#1A1A1A] text-gray-500 hover:border-gray-600")}
-                        >
-                          {l.text}
-                        </button>
+                        <button key={l.id} onClick={() => toggleLabel(l.id, false)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border", sl.includes(l.id) ? "border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]" : "border-gray-800 bg-[#1A1A1A] text-gray-500 hover:border-gray-600")}>{l.text}</button>
                       ))}
                     </div>
                   </div>
@@ -172,17 +160,11 @@ export const AdminView = ({
                         <option value="ON_ORDER">На заказ</option>
                       </select>
                       
-                      {/* МЕТКИ ПРИ РЕДАКТИРОВАНИИ */}
+                      {/* Выбор меток */}
                       {labels.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                           {labels.map((l: any) => (
-                            <button 
-                              key={l.id} 
-                              onClick={() => toggleLabel(l.id, true)} 
-                              className={cn("px-3 py-1.5 rounded-lg text-[9px] font-bold border", editSl.includes(l.id) ? "border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]" : "border-gray-800 bg-[#1A1A1A] text-gray-500")}
-                            >
-                              {l.text}
-                            </button>
+                            <button key={l.id} onClick={() => toggleLabel(l.id, true)} className={cn("px-3 py-1.5 rounded-lg text-[9px] font-bold border", editSl.includes(l.id) ? "border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]" : "border-gray-800 bg-[#1A1A1A] text-gray-500")}>{l.text}</button>
                           ))}
                         </div>
                       )}
