@@ -45,39 +45,37 @@ export const useGoldenApp = () => {
 
   // Обновление данных юзера (Проверка подписки)
   const refreshUserData = useCallback(async () => {
-  if (!user?.phone) return;
-  const cleanPhone = user.phone.replace(/\D/g, '');
+    if (!user?.phone) return;
+    const cleanPhone = user.phone.replace(/\D/g, '');
 
-  const { data, error } = await supabase
-  .from('auth_codes')
-  .select('role, subscription, expiry_date, name, tg_user_id')
-  .eq('phone', cleanPhone)
-  .eq('is_verified', true)
-  // Сортируем так, чтобы ADMIN и ACTIVE были первыми, а потом по дате
-  .order('role', { ascending: true }) // ADMIN по алфавиту выше, чем USER
-  .order('subscription', { ascending: true }) // ACTIVE выше, чем INACTIVE
-  .order('created_at', { ascending: false })
-  .limit(1)
-  .maybeSingle();
+    const { data, error } = await supabase
+      .from('auth_codes')
+      .select('role, subscription, expiry_date, name, tg_user_id')
+      .eq('phone', cleanPhone)
+      .eq('is_verified', true)
+      // Сортируем так, чтобы ADMIN и ACTIVE были первыми, а потом по дате
+      .order('role', { ascending: true }) 
+      .order('subscription', { ascending: true }) 
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (data && !error) {
-    const updatedUser = { 
-      ...user, 
-      full_name: data.name, 
-      role: data.role || 'USER', 
-      subscription: data.subscription || 'INACTIVE',
-      expiry_date: data.expiry_date,
-      tg_user_id: data.tg_user_id
-    };
-    
-    // Если данные в базе изменились (например, ты через админку продлил кому-то срок),
-    // фронтенд обновится сам в течение 10 секунд
-    if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
-      setUser(updatedUser);
-      localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
+    if (data && !error) {
+      const updatedUser = { 
+        ...user, 
+        full_name: data.name, 
+        role: data.role || 'USER', 
+        subscription: data.subscription || 'INACTIVE',
+        expiry_date: data.expiry_date,
+        tg_user_id: data.tg_user_id
+      };
+      
+      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
+        setUser(updatedUser);
+        localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
+      }
     }
-  }
-}, [user]);
+  }, [user]);
 
   // Уведомление в Telegram об оплате ПОДПИСКИ
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
@@ -127,15 +125,14 @@ export const useGoldenApp = () => {
 
   // Уведомление в Telegram о покупке КОНКРЕТНОГО НОМЕРА
   const sendPurchaseNotification = async (userData: any, phoneData: any) => {
-  const cleanPhone = userData?.phone?.replace(/\D/g, '');
-  const tgId = userData?.tg_user_id;
+    const cleanPhone = userData?.phone?.replace(/\D/g, '');
+    const tgId = userData?.tg_user_id;
 
-  // Формируем текст: если есть tgId, делаем имя кликабельным (mention)
-  const clientMention = tgId 
-    ? `[${userData?.full_name || 'Клиент'}](tg://user?id=${tgId})`
-    : `*${userData?.full_name || 'Клиент'}*`;
+    const clientMention = tgId 
+      ? `[${userData?.full_name || 'Клиент'}](tg://user?id=${tgId})`
+      : `*${userData?.full_name || 'Клиент'}*`;
 
-  const message = `
+    const message = `
 💰 *ЗАЯВКА НА ПОКУПКУ НОМЕРА*
 ━━━━━━━━━━━━━━━━━━
 👤 *Клиент:* ${clientMention}
@@ -144,43 +141,42 @@ export const useGoldenApp = () => {
 💵 *ЦЕНА:* ${phoneData.price.toLocaleString()} ₸
 ━━━━━━━━━━━━━━━━━━
 ⏰ *Время:* ${new Date().toLocaleString('ru-RU')}
-  `;
+    `;
 
-  const keyboard = {
-    inline_keyboard: [
-      [
-        { 
-          text: "🔵 Написать в Telegram", 
-          // Пробуем сначала через ID, если нет — через прямую ссылку по номеру
-          url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}`
-        }
-      ],
-      [
-        { 
-          text: "🟢 Написать в WhatsApp", 
-          url: `https://wa.me/${cleanPhone}`
-        }
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { 
+            text: "🔵 Написать в Telegram", 
+            url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}`
+          }
+        ],
+        [
+          { 
+            text: "🟢 Написать в WhatsApp", 
+            url: `https://wa.me/${cleanPhone}`
+          }
+        ]
       ]
-    ]
-  };
+    };
 
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TG_CHAT_ID,
-        text: message,
-        parse_mode: 'Markdown', // Оставляем обычный Markdown
-        reply_markup: keyboard
-      }),
-    });
-    return res.ok;
-  } catch (err) {
-    console.error("Ошибка уведомления о покупке:", err);
-    return false;
-  }
-};
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TG_CHAT_ID,
+          text: message,
+          parse_mode: 'Markdown', 
+          reply_markup: keyboard
+        }),
+      });
+      return res.ok;
+    } catch (err) {
+      console.error("Ошибка уведомления о покупке:", err);
+      return false;
+    }
+  };
 
   // Админка: Добавить номер
   const handleSavePhone = async () => {
@@ -209,12 +205,41 @@ export const useGoldenApp = () => {
     fetchData(); 
   }, [fetchData]);
 
+  // ⚡️ НОВЫЙ ЭФФЕКТ ДЛЯ МОМЕНТАЛЬНОГО ОБНОВЛЕНИЯ VIP СТАТУСА ⚡️
   useEffect(() => {
-    if (user && view !== 'auth') {
-      const interval = setInterval(refreshUserData, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [user, view, refreshUserData]);
+    if (!user?.phone || view === 'auth') return;
+
+    const cleanPhone = user.phone.replace(/\D/g, '');
+
+    // 1. Вызываем сразу при загрузке (чтобы не ждать таймер)
+    refreshUserData();
+
+    // 2. Подписка на моментальные обновления из базы (WebSockets)
+    const subscription = supabase
+      .channel(`user_vip_updates_${cleanPhone}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'auth_codes',
+          filter: `phone=eq.${cleanPhone}` // Слушаем только свою строку
+        },
+        (payload) => {
+          console.log('⚡️ VIP статус обновлен в БД! Мгновенно применяем...');
+          refreshUserData();
+        }
+      )
+      .subscribe();
+
+    // 3. Запасной интервал на случай потери связи
+    const interval = setInterval(refreshUserData, 15000);
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(subscription);
+    };
+  }, [user?.phone, view, refreshUserData]);
 
   useEffect(() => {
     if (user) {
@@ -234,23 +259,16 @@ export const useGoldenApp = () => {
 
   // --- РЕЗУЛЬТАТ ХУКА ---
   return {
-    // Навигация и Юзер
     view, setView, user, setUser, 
-    
-    // Данные
     phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones,
     selectedPhone, setSelectedPhone,
-    
-    // Действия (ВАЖНО: Добавлена sendPurchaseNotification)
     fetchData, 
     refreshUserData, 
     handleSavePhone, 
     handleDeletePhone, 
     sendPaymentNotification,
     sendPurchaseNotification,
-    
-    // Формы админа
     pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc
   };
 };
