@@ -2,22 +2,35 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { Phone, Label, UserProfile } from '../types';
 
-const KEYS = { SESSION: 'golden_v2_session' };
+const KEYS = { 
+  SESSION: 'golden_v2_session',
+  PHONES_CACHE: 'golden_v2_phones_cache',
+  LABELS_CACHE: 'golden_v2_labels_cache'
+};
 
 export const useGoldenApp = () => {
   // --- СОСТОЯНИЕ НАВИГАЦИИ И ПОЛЬЗОВАТЕЛЯ ---
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'subscription'>('catalog');
+  
   const [user, setUser] = useState<UserProfile | null>(() => {
     const data = localStorage.getItem(KEYS.SESSION);
     return data ? JSON.parse(data) : null;
   });
 
-  // 🌟 СОСТОЯНИЕ ЗАГРУЗКИ 🌟
-  const [isLoading, setIsLoading] = useState(true);
+  // --- ДАННЫЕ КАТАЛОГА (С МОМЕНТАЛЬНОЙ ЗАГРУЗКОЙ ИЗ КЭША) ---
+  const [phones, setPhones] = useState<Phone[]>(() => {
+    const cached = localStorage.getItem(KEYS.PHONES_CACHE);
+    return cached ? JSON.parse(cached) : [];
+  });
 
-  // --- ДАННЫЕ КАТАЛОГА ---
-  const [phones, setPhones] = useState<Phone[]>([]);
-  const [labels, setLabels] = useState<Label[]>([]);
+  const [labels, setLabels] = useState<Label[]>(() => {
+    const cached = localStorage.getItem(KEYS.LABELS_CACHE);
+    return cached ? JSON.parse(cached) : [];
+  });
+
+  // Иконка загрузки видна только если кэш пустой, чтобы не бесить юзера
+  const [isLoading, setIsLoading] = useState(phones.length === 0);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
@@ -30,31 +43,42 @@ export const useGoldenApp = () => {
   const [lt, setLt] = useState('');
   const [lc, setLc] = useState('#D4AF37');
 
-  // --- КОНФИГ ТЕЛЕГРАМА (Берем из .env, но оставляем старые как запасные) ---
+  // --- КОНФИГ ТЕЛЕГРАМА (Берем из .env) ---
   const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN || "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
   const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID || "7620660514";
 
-  // --- МЕТОДЫ ---
+  // --- МЕТОДЫ ЗАГРУЗКИ ---
 
-  // Загрузка каталога (номера и теги) с включением индикатора загрузки
   const fetchData = useCallback(async () => {
-    setIsLoading(true); // Включаем спиннер
+    // Если кэша нет — показываем лоадер, если есть — грузим в фоне
+    if (phones.length === 0) setIsLoading(true);
+
     try {
       const [pRes, lRes] = await Promise.all([
         supabase.from('phones')
-          .select('*')
+          .select('id, number, price, status, label_ids, created_at')
           .order('created_at', { ascending: false })
-          .limit(200), // <--- ВОТ ЭТА СТРОЧКА СПАСЕТ СИТУАЦИЮ
-        supabase.from('labels').select('*').order('text')
+          .limit(200),
+        supabase.from('labels')
+          .select('id, text, color')
+          .order('text')
       ]);
-      if (pRes.data) setPhones(pRes.data);
-      if (lRes.data) setLabels(lRes.data);
+      
+      if (pRes.data) {
+        setPhones(pRes.data);
+        localStorage.setItem(KEYS.PHONES_CACHE, JSON.stringify(pRes.data));
+      }
+      if (lRes.data) {
+        setLabels(lRes.data);
+        localStorage.setItem(KEYS.LABELS_CACHE, JSON.stringify(lRes.data));
+      }
+    } catch (e) {
+      console.error("Критическая ошибка загрузки:", e);
     } finally {
-      setIsLoading(false); // Выключаем спиннер, когда всё готово
+      setIsLoading(false);
     }
-  }, []);
+  }, [phones.length]);
 
-  // Обновление данных юзера (Проверка подписки и удалений)
   const refreshUserData = useCallback(async () => {
     if (!user?.phone) return;
     const cleanPhone = user.phone.replace(/\D/g, '');
@@ -64,31 +88,25 @@ export const useGoldenApp = () => {
       .select('role, subscription, expiry_date, name, tg_user_id')
       .eq('phone', cleanPhone)
       .eq('is_verified', true)
-      // Сортируем так, чтобы ADMIN и ACTIVE были первыми, а потом по дате
       .order('role', { ascending: true }) 
       .order('subscription', { ascending: true }) 
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    // ⚡️ ЕСЛИ ЮЗЕРА БОЛЬШЕ НЕТ В БАЗЕ (ТЫ ЕГО УДАЛИЛ) -> СБРАСЫВАЕМ ЛОКАЛЬНУЮ ПАМЯТЬ
     if (!data || error) {
       setUser(null);
       localStorage.removeItem(KEYS.SESSION);
       return;
     }
 
-    // ⚡️ АВТОМАТИЧЕСКАЯ ПРОВЕРКА НА ПРОСРОЧКУ И ПРАВА АДМИНА
+    // Логика VIP доступа
     let currentSub = data.subscription || 'INACTIVE';
-    
-    // Если это Владелец (ADMIN) - даем вечный доступ, игнорируем даты
     if (data.role === 'ADMIN') {
       currentSub = 'ACTIVE';
-    } 
-    // Для обычных юзеров проверяем срок годности
-    else if (currentSub === 'ACTIVE' && data.expiry_date) {
+    } else if (currentSub === 'ACTIVE' && data.expiry_date) {
       if (new Date(data.expiry_date) < new Date()) {
-        currentSub = 'INACTIVE'; // Если время вышло, сбрасываем статус
+        currentSub = 'INACTIVE';
       }
     }
 
@@ -101,17 +119,19 @@ export const useGoldenApp = () => {
       tg_user_id: data.tg_user_id
     };
     
+    // Обновляем стейт и локал только если данные реально изменились (защита от циклов)
     if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
       setUser(updatedUser);
       localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
     }
   }, [user]);
 
-  // Уведомление в Telegram об оплате ПОДПИСКИ (Исправлено на HTML)
+  // --- ТЕЛЕГРАМ УВЕДОМЛЕНИЯ (HTML MODE) ---
+
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
     const tgId = userData?.tg_user_id; 
-
+    
     const message = `
 🔔 <b>НОВАЯ ЗАЯВКА НА ОПЛАТУ</b>
 👤 Клиент: ${userData?.full_name || 'Не указано'}
@@ -123,15 +143,11 @@ export const useGoldenApp = () => {
 
     const keyboard = {
       inline_keyboard: [
-        [
-          { text: "✅ Подтвердить оплату", callback_data: `approve_pay:${cleanPhone}` }
-        ],
-        [
-          { 
-            text: "🔵 Написать в Telegram", 
-            url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}` 
-          }
-        ]
+        [{ text: "✅ Подтвердить оплату", callback_data: `approve_pay:${cleanPhone}` }],
+        [{ 
+          text: "🔵 Написать в Telegram", 
+          url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}` 
+        }]
       ]
     };
 
@@ -142,23 +158,19 @@ export const useGoldenApp = () => {
         body: JSON.stringify({
           chat_id: TG_CHAT_ID,
           text: message,
-          parse_mode: 'HTML', // ВАЖНО: Используем HTML
+          parse_mode: 'HTML',
           reply_markup: keyboard
         }),
       });
-      if (!res.ok) console.error("TG API Error:", await res.json());
       return res.ok;
     } catch (err) {
-      console.error("TG Error:", err);
       return false;
     }
   };
 
-  // Уведомление в Telegram о покупке КОНКРЕТНОГО НОМЕРА (Исправлено на HTML)
   const sendPurchaseNotification = async (userData: any, phoneData: any) => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
     const tgId = userData?.tg_user_id;
-
     const clientMention = tgId 
       ? `<a href="tg://user?id=${tgId}">${userData?.full_name || 'Клиент'}</a>`
       : `<b>${userData?.full_name || 'Клиент'}</b>`;
@@ -176,18 +188,14 @@ export const useGoldenApp = () => {
 
     const keyboard = {
       inline_keyboard: [
-        [
-          { 
-            text: "🔵 Написать в Telegram", 
-            url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}`
-          }
-        ],
-        [
-          { 
-            text: "🟢 Написать в WhatsApp", 
-            url: `https://wa.me/${cleanPhone}`
-          }
-        ]
+        [{ 
+          text: "🔵 Написать в Telegram", 
+          url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}`
+        }],
+        [{ 
+          text: "🟢 Написать в WhatsApp", 
+          url: `https://wa.me/${cleanPhone}`
+        }]
       ]
     };
 
@@ -198,32 +206,34 @@ export const useGoldenApp = () => {
         body: JSON.stringify({
           chat_id: TG_CHAT_ID,
           text: message,
-          parse_mode: 'HTML', // ВАЖНО: Используем HTML
+          parse_mode: 'HTML', 
           reply_markup: keyboard
         }),
       });
-      if (!res.ok) console.error("TG API Error:", await res.json());
       return res.ok;
     } catch (err) {
-      console.error("Ошибка уведомления о покупке:", err);
       return false;
     }
   };
 
-  // Админка: Добавить номер
+  // --- АДМИН-ФУНКЦИИ ---
+
   const handleSavePhone = async () => {
     if (!pn || !pr) return alert('Заполните данные');
-    const payload = { number: pn, price: Number(pr), status: st, label_ids: sl };
-    const { error } = await supabase.from('phones').insert([payload]);
-    if (!error) { 
-      setPn(''); setPr(''); setSl([]); 
-      await fetchData(); 
-      return true; 
+    const { error } = await supabase.from('phones').insert([{ 
+      number: pn, 
+      price: Number(pr), 
+      status: st, 
+      label_ids: sl 
+    }]);
+    if (!error) {
+      setPn(''); setPr(''); setSl([]);
+      await fetchData();
+      return true;
     }
     return false;
   };
 
-  // Админка: Удалить номер
   const handleDeletePhone = async (id: string) => {
     if (confirm('Удалить этот номер из базы?')) {
       const { error } = await supabase.from('phones').delete().eq('id', id);
@@ -237,48 +247,22 @@ export const useGoldenApp = () => {
     fetchData(); 
   }, [fetchData]);
 
-  // ⚡️ ЭФФЕКТ ДЛЯ МОМЕНТАЛЬНОГО ОБНОВЛЕНИЯ СТАТУСА ⚡️
   useEffect(() => {
     if (!user?.phone || view === 'auth') return;
 
     const cleanPhone = user.phone.replace(/\D/g, '');
-
-    // 1. Вызываем сразу при загрузке (чтобы не ждать таймер)
     refreshUserData();
 
-    // 2. Подписка на моментальные обновления из базы (WebSockets)
+    // Realtime подписка на изменения прав
     const subscription = supabase
-      .channel(`user_vip_updates_${cleanPhone}`)
+      .channel(`updates`)
       .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'auth_codes',
-          filter: `phone=eq.${cleanPhone}` // Слушаем только свою строку
-        },
-        (payload) => {
-          console.log('⚡️ Данные обновлены в БД! Мгновенно применяем...');
-          refreshUserData();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'auth_codes',
-          filter: `phone=eq.${cleanPhone}` // Слушаем удаление своей строки
-        },
-        (payload) => {
-          console.log('⚡️ Пользователь удален из БД! Выходим из аккаунта...');
-          setUser(null);
-          localStorage.removeItem(KEYS.SESSION);
-        }
+        'postgres_changes', 
+        { event: '*', schema: 'public', table: 'auth_codes' }, 
+        () => refreshUserData()
       )
       .subscribe();
 
-    // 3. Запасной интервал на случай потери связи
     const interval = setInterval(refreshUserData, 15000);
 
     return () => {
@@ -295,6 +279,7 @@ export const useGoldenApp = () => {
     }
   }, [user]);
 
+  // --- ФИЛЬТРАЦИЯ ---
   const filteredPhones = useMemo(() => {
     return phones.filter(p => {
       const matchesSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
@@ -303,19 +288,12 @@ export const useGoldenApp = () => {
     });
   }, [phones, searchQuery, activeLabelFilter]);
 
-  // --- РЕЗУЛЬТАТ ХУКА ---
+  // --- ЭКСПОРТ ---
   return {
-    isLoading, // 🌟 ВОЗВРАЩАЕМ ИНДИКАТОР ЗАГРУЗКИ
-    view, setView, user, setUser, 
-    phones, labels, searchQuery, setSearchQuery,
-    activeLabelFilter, setActiveLabelFilter, filteredPhones,
-    selectedPhone, setSelectedPhone,
-    fetchData, 
-    refreshUserData, 
-    handleSavePhone, 
-    handleDeletePhone, 
-    sendPaymentNotification,
-    sendPurchaseNotification,
+    isLoading, view, setView, user, setUser, phones, labels, searchQuery, setSearchQuery,
+    activeLabelFilter, setActiveLabelFilter, filteredPhones, selectedPhone, setSelectedPhone,
+    fetchData, refreshUserData, handleSavePhone, handleDeletePhone, 
+    sendPaymentNotification, sendPurchaseNotification,
     pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc
   };
 };
