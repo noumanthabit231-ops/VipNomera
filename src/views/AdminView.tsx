@@ -8,6 +8,34 @@ import { Button } from '../components/ui/Button';
 import { cn } from '../cn';
 import { supabase } from '../supabase';
 
+// Умная функция для подсчета дней
+const getDaysDiff = (expiryStr: string) => {
+  if (!expiryStr) return null;
+  const today = new Date();
+  const expiry = new Date(expiryStr);
+  
+  // Обнуляем часы, чтобы считать полные сутки
+  today.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
+  
+  const diffTime = expiry.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  
+  const absDays = Math.abs(diffDays);
+  const getWord = (n: number) => {
+    const last = n % 10;
+    const lastTwo = n % 100;
+    if (lastTwo >= 11 && lastTwo <= 14) return 'дней';
+    if (last === 1) return 'день';
+    if (last >= 2 && last <= 4) return 'дня';
+    return 'дней';
+  };
+
+  if (diffDays > 0) return { text: `Осталось ${diffDays} ${getWord(diffDays)}`, type: 'active' };
+  if (diffDays === 0) return { text: 'Заканчивается сегодня', type: 'warning' };
+  return { text: `Просрочен на ${absDays} ${getWord(absDays)}`, type: 'expired' };
+};
+
 export const AdminView = ({ 
   phones, labels, fetchData, setView,
   pn, setPn, pr, setPr, st, setSt, sl, setSl
@@ -26,7 +54,6 @@ export const AdminView = ({
   const [newLabelText, setNewLabelText] = useState('');
   const [newLabelColor, setNewLabelColor] = useState('#D4AF37');
 
-  // Получение заявок (фильтруем архивированные)
   const fetchOrders = async () => {
     const { data } = await supabase
       .from('custom_orders')
@@ -36,7 +63,6 @@ export const AdminView = ({
     setOrders(data || []);
   };
 
-  // Получение клиентов
   const fetchClients = async () => {
     const { data } = await supabase
       .from('auth_codes')
@@ -53,23 +79,14 @@ export const AdminView = ({
 
   // --- ЛОГИКА ЗАЯВОК ---
   const handleArchiveOrder = async (id: string) => {
-    // Оптимистичное удаление из списка
     setOrders(prev => prev.filter(o => o.id !== id));
-    
-    const { error } = await supabase
-      .from('custom_orders')
-      .update({ status: 'ARCHIVED' })
-      .eq('id', id);
-
-    if (error) {
-      alert("Ошибка при архивации: " + error.message);
-      fetchOrders(); // Если ошибка - возвращаем как было
-    }
+    const { error } = await supabase.from('custom_orders').update({ status: 'ARCHIVED' }).eq('id', id);
+    if (error) { alert("Ошибка при архивации: " + error.message); fetchOrders(); }
   };
 
   const handleDeleteOrder = async (id: string) => {
     if (confirm('Удалить заявку навсегда?')) {
-      setOrders(prev => prev.filter(o => o.id !== id)); // Оптимистичное удаление
+      setOrders(prev => prev.filter(o => o.id !== id));
       await supabase.from('custom_orders').delete().eq('id', id);
     }
   };
@@ -107,58 +124,32 @@ export const AdminView = ({
 
   // --- ЛОГИКА НОМЕРОВ ---
   const startEdit = (p: any) => {
-    setEditingId(p.id); 
-    setEditPn(p.number); 
-    setEditPr(p.price.toString());
-    setEditSt(p.status); 
-    setEditSl(p.label_ids || []);
+    setEditingId(p.id); setEditPn(p.number); setEditPr(p.price.toString());
+    setEditSt(p.status); setEditSl(p.label_ids || []);
   };
 
   const handleSaveEdit = async () => {
     setIsSaving(true);
-
-    // ⚡️ 1. МГНОВЕННО МЕНЯЕМ В ИНТЕРФЕЙСЕ
     const phoneToUpdate = phones.find((p: any) => p.id === editingId);
     if (phoneToUpdate) {
-      phoneToUpdate.number = editPn;
-      phoneToUpdate.price = Number(editPr);
-      phoneToUpdate.status = editSt;
-      phoneToUpdate.label_ids = editSl; 
+      phoneToUpdate.number = editPn; phoneToUpdate.price = Number(editPr);
+      phoneToUpdate.status = editSt; phoneToUpdate.label_ids = editSl; 
     }
 
-    // ⚡️ 2. Отправляем в базу
     const { error } = await supabase.from('phones').update({ 
-      number: editPn, 
-      price: Number(editPr), 
-      status: editSt, 
-      label_ids: editSl 
+      number: editPn, price: Number(editPr), status: editSt, label_ids: editSl 
     }).eq('id', editingId);
 
-    if (error) {
-      alert("Ошибка при сохранении в БД: " + error.message);
-    } else {
-      setEditingId(null);
-    }
-    
+    if (error) alert("Ошибка при сохранении в БД: " + error.message);
+    else setEditingId(null);
     setIsSaving(false);
   };
 
   const handleCreatePhone = async () => {
     if (!pn || !pr) return alert('Заполните номер и цену');
-    
-    const { error } = await supabase.from('phones').insert([{ 
-      number: pn, 
-      price: Number(pr), 
-      status: st, 
-      label_ids: sl 
-    }]);
-
-    if (error) {
-      alert("Ошибка при создании: " + error.message);
-    } else {
-      setPn(''); setPr(''); setSl([]);
-      if (fetchData) await fetchData();
-    }
+    const { error } = await supabase.from('phones').insert([{ number: pn, price: Number(pr), status: st, label_ids: sl }]);
+    if (error) alert("Ошибка при создании: " + error.message);
+    else { setPn(''); setPr(''); setSl([]); if (fetchData) await fetchData(); }
   };
 
   const handleDeletePhone = async (id: string) => {
@@ -182,11 +173,8 @@ export const AdminView = ({
   };
 
   const toggleLabel = (labelId: string, isEditing: boolean) => {
-    if (isEditing) {
-      setEditSl(prev => prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]);
-    } else {
-      setSl(prev => prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]);
-    }
+    if (isEditing) setEditSl(prev => prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]);
+    else setSl(prev => prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]);
   };
 
   const inputClass = "w-full bg-[#1A1A1A] border-2 border-gray-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-[#D4AF37]/50 transition-all placeholder:text-gray-600";
@@ -349,7 +337,7 @@ export const AdminView = ({
           </div>
         )}
 
-        {/* ВКЛАДКА: КЛИЕНТЫ (НОВАЯ) */}
+        {/* 🌟 ВКЛАДКА: КЛИЕНТЫ 🌟 */}
         {tab === 'clients' && (
           <div className="space-y-4">
             {clients.length === 0 && (
@@ -361,25 +349,56 @@ export const AdminView = ({
 
             {clients.map(c => {
               const isVIP = c.subscription === 'ACTIVE';
+              const hasExpiry = !!c.expiry_date;
+              const isExpired = hasExpiry && new Date(c.expiry_date) < new Date();
+              const daysInfo = getDaysDiff(c.expiry_date);
+              
+              let statusText = 'Обычный';
+              let statusColor = "bg-[#1A1A1A] text-gray-500 border-gray-800";
+              let badgeColor = "bg-gray-700";
+
+              if (isVIP && !isExpired) {
+                statusText = 'VIP Активен';
+                statusColor = "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/30";
+                badgeColor = "bg-[#D4AF37]";
+              } else if (isExpired) {
+                statusText = 'ПРОСРОЧЕН';
+                statusColor = "bg-red-500/10 text-red-500 border-red-500/30";
+                badgeColor = "bg-red-500";
+              }
+
               return (
-                <div key={c.id} className="p-5 bg-[#111] rounded-[1.5rem] border border-gray-800 shadow-lg relative overflow-hidden">
-                  <div className={cn("absolute top-0 left-0 w-1 h-full", isVIP ? "bg-[#D4AF37]" : "bg-gray-700")} />
+                <div key={c.id} className={cn("p-5 bg-[#111] rounded-[1.5rem] border shadow-lg relative overflow-hidden", isExpired ? "border-red-500/20 shadow-red-500/5" : "border-gray-800")}>
+                  <div className={cn("absolute top-0 left-0 w-1 h-full", badgeColor)} />
                   
                   <div className="flex justify-between items-start mb-4 pl-2">
                     <div>
                       <h3 className="text-xl font-black text-white italic tracking-tighter">{c.name || 'Аноним'}</h3>
                       <p className="text-[#D4AF37] font-bold text-sm tracking-widest uppercase mt-1">+{c.phone}</p>
+                      
+                      {/* СЧЕТЧИК ДНЕЙ */}
+                      {hasExpiry && daysInfo && (
+                        <div className="mt-3">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                            До: {new Date(c.expiry_date).toLocaleDateString('ru-RU')}
+                          </p>
+                          <p className={cn(
+                            "text-[10px] font-black uppercase tracking-widest mt-1",
+                            daysInfo.type === 'active' ? "text-[#D4AF37]" : 
+                            daysInfo.type === 'expired' ? "text-red-500" : "text-orange-400"
+                          )}>
+                            {daysInfo.text}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <div className={cn(
-                      "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
-                      isVIP ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/30" : "bg-[#1A1A1A] text-gray-500 border-gray-800"
-                    )}>
-                      {isVIP ? 'VIP Клиент' : 'Обычный'}
+                    <div className={cn("px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border", statusColor)}>
+                      {statusText}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 mt-4 pl-2">
-                    {isVIP ? (
+                    {isVIP || isExpired ? (
                       <button 
                         onClick={() => handleRevokeVIP(c.id)}
                         className="flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl text-[10px] font-black uppercase hover:bg-red-500/20 transition-all"
