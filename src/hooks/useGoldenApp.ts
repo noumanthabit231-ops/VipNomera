@@ -36,7 +36,10 @@ export const useGoldenApp = () => {
   // Загрузка каталога (номера и теги)
   const fetchData = useCallback(async () => {
     const [pRes, lRes] = await Promise.all([
-      supabase.from('phones').select('*').order('created_at', { ascending: false }),
+      supabase.from('phones')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200), // <--- ВОТ ЭТА СТРОЧКА СПАСЕТ СИТУАЦИЮ
       supabase.from('labels').select('*').order('text')
     ]);
     if (pRes.data) setPhones(pRes.data);
