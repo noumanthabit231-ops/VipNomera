@@ -21,7 +21,7 @@ import { Button } from './components/ui/Button';
 import { cn } from './cn';
 import { OrderNumberView } from './views/OrderNumberView';
 
-const KASPI_PAY_LINK = "https://pay.kaspi.kz/pay/nlgccild";
+const KASPI_PAY_LINK = import.meta.env.VITE_KASPI_LINK || "https://pay.kaspi.kz/pay/nlgccild";
 
 export default function App() {
   const { 
@@ -30,7 +30,8 @@ export default function App() {
     user, 
     setUser,
     selectedPhone, 
-    setSelectedPhone, 
+    setSelectedPhone,
+    isLoading, // 🌟 ЯВНО ДОСТАЕМ ИНДИКАТОР ЗАГРУЗКИ 🌟
     ...state 
   } = useGoldenApp() as any;
 
@@ -46,7 +47,7 @@ export default function App() {
     <div className="min-h-screen bg-[#050505] text-white selection:bg-[#D4AF37]/30">
       <main className="max-w-xl mx-auto px-5 min-h-screen pb-32">
         <AnimatePresence mode="wait">
-          {/* ОПТИМИЗАЦИЯ ДЛЯ МОБИЛЬНЫХ: Только opacity, без движения по оси Y */}
+          {/* ОПТИМИЗАЦИЯ ДЛЯ МОБИЛЬНЫХ: Только opacity */}
           <motion.div
             key={view + (user ? '-auth' : '-guest')}
             initial={{ opacity: 0 }}
@@ -55,16 +56,27 @@ export default function App() {
             transition={{ duration: 0.15, ease: "easeInOut" }}
             className="will-change-opacity"
           >
-            {view === 'catalog' && <CatalogView {...state} setSelectedPhone={setSelectedPhone} setView={setView} />}
+            {/* 🌟 ОБЯЗАТЕЛЬНО ПЕРЕДАЕМ isLoading и user ЯВНО 🌟 */}
+            {view === 'catalog' && (
+              <CatalogView 
+                {...state} 
+                isLoading={isLoading} 
+                user={user} 
+                setSelectedPhone={setSelectedPhone} 
+                setView={setView} 
+              />
+            )}
+            
             {view === 'auth' && !user && <AuthView />}
             {view === 'order' && (user ? <OrderNumberView user={user} setView={setView} /> : <AuthView />)}
             {view === 'admin' && user?.role === 'ADMIN' && <AdminView {...state} setView={setView} />}
-            {view === 'profile' && user && <ProfileView user={user} setView={setView} setUser={setUser} />}
+            {view === 'profile' && user && <ProfileView user={user} setView={setView} setUser={setUser} sendPaymentNotification={state.sendPaymentNotification} />}
             {view === 'subscription' && (user ? <SubscriptionView setView={setView} user={user} onNotify={() => state.sendPaymentNotification(user)} /> : <AuthView />)}
           </motion.div>
         </AnimatePresence>
       </main>
 
+      {/* НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ */}
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-[85%] max-w-sm bg-[#111111]/95 rounded-[2.5rem] border border-[#D4AF37]/20 shadow-2xl shadow-[#D4AF37]/5">
         <div className="flex items-center justify-around h-20">
           <button 
@@ -93,6 +105,7 @@ export default function App() {
         </div>
       </nav>
 
+      {/* ШТОРКА ОФОРМЛЕНИЯ ЗАКАЗА */}
       <BottomSheet 
         isOpen={!!selectedPhone} 
         onClose={() => setSelectedPhone(null)} 
@@ -139,6 +152,8 @@ export default function App() {
                       if (ok) {
                         alert("Заявка отправлена! Ожидайте сообщения от менеджера.");
                         setSelectedPhone(null);
+                      } else {
+                        alert("Ошибка отправки. Попробуйте позже.");
                       }
                     }}
                   >
@@ -157,7 +172,7 @@ export default function App() {
                     className="py-6 text-lg bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 border-none font-black uppercase" 
                     onClick={() => {
                       setSelectedPhone(null);
-                      setView('subscription');
+                      setView('profile'); // Изменил с 'subscription' на 'profile'
                     }}
                   >
                     <Crown size={20} className="mr-2" /> Открыть VIP доступ
