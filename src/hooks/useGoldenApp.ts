@@ -67,9 +67,15 @@ export const useGoldenApp = () => {
       return;
     }
 
-    // ⚡️ АВТОМАТИЧЕСКАЯ ПРОВЕРКА НА ПРОСРОЧКУ
+    // ⚡️ АВТОМАТИЧЕСКАЯ ПРОВЕРКА НА ПРОСРОЧКУ И ПРАВА АДМИНА
     let currentSub = data.subscription || 'INACTIVE';
-    if (currentSub === 'ACTIVE' && data.expiry_date) {
+    
+    // Если это Владелец (ADMIN) - даем вечный доступ, игнорируем даты
+    if (data.role === 'ADMIN') {
+      currentSub = 'ACTIVE';
+    } 
+    // Для обычных юзеров проверяем срок годности
+    else if (currentSub === 'ACTIVE' && data.expiry_date) {
       if (new Date(data.expiry_date) < new Date()) {
         currentSub = 'INACTIVE'; // Если время вышло, сбрасываем статус
       }
