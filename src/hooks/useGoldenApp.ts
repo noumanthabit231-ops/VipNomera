@@ -39,7 +39,7 @@ export const useGoldenApp = () => {
       supabase.from('phones')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(200), // <--- ВОТ ЭТА СТРОЧКА СПАСЕТ СИТУАЦИЮ
+        .limit(100), // <--- ВОТ ЭТА СТРОЧКА СПАСЕТ СИТУАЦИЮ
       supabase.from('labels').select('*').order('text')
     ]);
     if (pRes.data) setPhones(pRes.data);
