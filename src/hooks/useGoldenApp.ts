@@ -43,7 +43,7 @@ export const useGoldenApp = () => {
     if (lRes.data) setLabels(lRes.data);
   }, []);
 
-  // Обновление данных юзера (Проверка подписки)
+  // Обновление данных юзера (Проверка подписки и удалений)
   const refreshUserData = useCallback(async () => {
     if (!user?.phone) return;
     const cleanPhone = user.phone.replace(/\D/g, '');
@@ -60,20 +60,33 @@ export const useGoldenApp = () => {
       .limit(1)
       .maybeSingle();
 
-    if (data && !error) {
-      const updatedUser = { 
-        ...user, 
-        full_name: data.name, 
-        role: data.role || 'USER', 
-        subscription: data.subscription || 'INACTIVE',
-        expiry_date: data.expiry_date,
-        tg_user_id: data.tg_user_id
-      };
-      
-      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
-        setUser(updatedUser);
-        localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
+    // ⚡️ ЕСЛИ ЮЗЕРА БОЛЬШЕ НЕТ В БАЗЕ (ТЫ ЕГО УДАЛИЛ) -> СБРАСЫВАЕМ ЛОКАЛЬНУЮ ПАМЯТЬ
+    if (!data || error) {
+      setUser(null);
+      localStorage.removeItem(KEYS.SESSION);
+      return;
+    }
+
+    // ⚡️ АВТОМАТИЧЕСКАЯ ПРОВЕРКА НА ПРОСРОЧКУ
+    let currentSub = data.subscription || 'INACTIVE';
+    if (currentSub === 'ACTIVE' && data.expiry_date) {
+      if (new Date(data.expiry_date) < new Date()) {
+        currentSub = 'INACTIVE'; // Если время вышло, сбрасываем статус
       }
+    }
+
+    const updatedUser = { 
+      ...user, 
+      full_name: data.name, 
+      role: data.role || 'USER', 
+      subscription: currentSub,
+      expiry_date: data.expiry_date,
+      tg_user_id: data.tg_user_id
+    };
+    
+    if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
+      setUser(updatedUser);
+      localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
     }
   }, [user]);
 
@@ -205,7 +218,7 @@ export const useGoldenApp = () => {
     fetchData(); 
   }, [fetchData]);
 
-  // ⚡️ НОВЫЙ ЭФФЕКТ ДЛЯ МОМЕНТАЛЬНОГО ОБНОВЛЕНИЯ VIP СТАТУСА ⚡️
+  // ⚡️ ЭФФЕКТ ДЛЯ МОМЕНТАЛЬНОГО ОБНОВЛЕНИЯ СТАТУСА ⚡️
   useEffect(() => {
     if (!user?.phone || view === 'auth') return;
 
@@ -226,8 +239,22 @@ export const useGoldenApp = () => {
           filter: `phone=eq.${cleanPhone}` // Слушаем только свою строку
         },
         (payload) => {
-          console.log('⚡️ VIP статус обновлен в БД! Мгновенно применяем...');
+          console.log('⚡️ Данные обновлены в БД! Мгновенно применяем...');
           refreshUserData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'auth_codes',
+          filter: `phone=eq.${cleanPhone}` // Слушаем удаление своей строки
+        },
+        (payload) => {
+          console.log('⚡️ Пользователь удален из БД! Выходим из аккаунта...');
+          setUser(null);
+          localStorage.removeItem(KEYS.SESSION);
         }
       )
       .subscribe();
