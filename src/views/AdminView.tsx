@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, X, Edit2, Save, 
-  MessageSquare, Send, CheckCircle2, Inbox 
+  MessageSquare, Send, CheckCircle2, Inbox,
+  Users, Shield, ShieldOff, UserX
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { cn } from '../cn';
@@ -11,7 +12,7 @@ export const AdminView = ({
   phones, labels, fetchData, setView,
   pn, setPn, pr, setPr, st, setSt, sl, setSl
 }: any) => {
-  const [tab, setTab] = useState<'orders' | 'phones' | 'labels'>('phones');
+  const [tab, setTab] = useState<'orders' | 'phones' | 'labels' | 'clients'>('phones');
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPn, setEditPn] = useState('');
@@ -21,6 +22,7 @@ export const AdminView = ({
   const [isSaving, setIsSaving] = useState(false);
 
   const [orders, setOrders] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [newLabelText, setNewLabelText] = useState('');
   const [newLabelColor, setNewLabelColor] = useState('#D4AF37');
 
@@ -34,10 +36,19 @@ export const AdminView = ({
     setOrders(data || []);
   };
 
+  // Получение клиентов
+  const fetchClients = async () => {
+    const { data } = await supabase
+      .from('auth_codes')
+      .select('*')
+      .eq('is_verified', true)
+      .order('created_at', { ascending: false });
+    setClients(data || []);
+  };
+
   useEffect(() => {
-    if (tab === 'orders') {
-      fetchOrders();
-    }
+    if (tab === 'orders') fetchOrders();
+    if (tab === 'clients') fetchClients();
   }, [tab]);
 
   // --- ЛОГИКА ЗАЯВОК ---
@@ -60,6 +71,37 @@ export const AdminView = ({
     if (confirm('Удалить заявку навсегда?')) {
       setOrders(prev => prev.filter(o => o.id !== id)); // Оптимистичное удаление
       await supabase.from('custom_orders').delete().eq('id', id);
+    }
+  };
+
+  // --- ЛОГИКА КЛИЕНТОВ (ПОДПИСКИ) ---
+  const handleGrantVIP = async (id: string) => {
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+
+    const { error } = await supabase
+      .from('auth_codes')
+      .update({ subscription: 'ACTIVE', expiry_date: expiryDate.toISOString() })
+      .eq('id', id);
+
+    if (!error) fetchClients();
+    else alert("Ошибка при выдаче VIP: " + error.message);
+  };
+
+  const handleRevokeVIP = async (id: string) => {
+    const { error } = await supabase
+      .from('auth_codes')
+      .update({ subscription: 'INACTIVE', expiry_date: null })
+      .eq('id', id);
+
+    if (!error) fetchClients();
+    else alert("Ошибка при снятии VIP: " + error.message);
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    if (confirm('Вы уверены, что хотите полностью удалить этого клиента?')) {
+      await supabase.from('auth_codes').delete().eq('id', id);
+      fetchClients();
     }
   };
 
@@ -158,10 +200,10 @@ export const AdminView = ({
       </div>
       
       {/* Навигация */}
-      <div className="flex gap-2 bg-[#111] p-1.5 rounded-[2rem] border border-gray-800 mx-2">
-        {(['orders', 'phones', 'labels'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={cn("flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all", tab === t ? "bg-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20" : "text-gray-500 hover:text-gray-300")}>
-            {t === 'orders' ? 'Заявки' : t === 'phones' ? 'Номера' : 'Метки'}
+      <div className="flex gap-2 bg-[#111] p-1.5 rounded-[2rem] border border-gray-800 mx-2 overflow-x-auto hide-scrollbar">
+        {(['orders', 'phones', 'labels', 'clients'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} className={cn("flex-1 py-3 px-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap", tab === t ? "bg-[#D4AF37] text-black shadow-lg shadow-[#D4AF37]/20" : "text-gray-500 hover:text-gray-300")}>
+            {t === 'orders' ? 'Заявки' : t === 'phones' ? 'Номера' : t === 'labels' ? 'Метки' : 'Клиенты'}
           </button>
         ))}
       </div>
@@ -304,6 +346,65 @@ export const AdminView = ({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ВКЛАДКА: КЛИЕНТЫ (НОВАЯ) */}
+        {tab === 'clients' && (
+          <div className="space-y-4">
+            {clients.length === 0 && (
+              <div className="text-center p-16 text-gray-700 font-black uppercase tracking-widest border-2 border-dashed border-gray-900 rounded-[2.5rem]">
+                <Users size={40} className="mx-auto mb-4 opacity-20" />
+                Нет клиентов
+              </div>
+            )}
+
+            {clients.map(c => {
+              const isVIP = c.subscription === 'ACTIVE';
+              return (
+                <div key={c.id} className="p-5 bg-[#111] rounded-[1.5rem] border border-gray-800 shadow-lg relative overflow-hidden">
+                  <div className={cn("absolute top-0 left-0 w-1 h-full", isVIP ? "bg-[#D4AF37]" : "bg-gray-700")} />
+                  
+                  <div className="flex justify-between items-start mb-4 pl-2">
+                    <div>
+                      <h3 className="text-xl font-black text-white italic tracking-tighter">{c.name || 'Аноним'}</h3>
+                      <p className="text-[#D4AF37] font-bold text-sm tracking-widest uppercase mt-1">+{c.phone}</p>
+                    </div>
+                    <div className={cn(
+                      "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                      isVIP ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/30" : "bg-[#1A1A1A] text-gray-500 border-gray-800"
+                    )}>
+                      {isVIP ? 'VIP Клиент' : 'Обычный'}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-4 pl-2">
+                    {isVIP ? (
+                      <button 
+                        onClick={() => handleRevokeVIP(c.id)}
+                        className="flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl text-[10px] font-black uppercase hover:bg-red-500/20 transition-all"
+                      >
+                        <ShieldOff size={14} /> Забрать VIP
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleGrantVIP(c.id)}
+                        className="flex items-center justify-center gap-2 py-3 bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 rounded-xl text-[10px] font-black uppercase hover:bg-[#D4AF37]/20 transition-all"
+                      >
+                        <Shield size={14} /> Выдать VIP
+                      </button>
+                    )}
+                    
+                    <button 
+                      onClick={() => handleDeleteClient(c.id)}
+                      className="flex items-center justify-center gap-2 py-3 bg-[#1A1A1A] text-gray-500 border border-gray-800 rounded-xl text-[10px] font-black uppercase hover:text-red-500 hover:border-red-500/30 transition-all"
+                    >
+                      <UserX size={14} /> Удалить
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
