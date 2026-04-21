@@ -84,21 +84,21 @@ export const CatalogView = ({
         </button>
       </div>
 
-      {/* Сетка карточек */}
-      <div className="grid grid-cols-1 gap-5 px-2">
+      {/* 🌟 СЕТКА КАРТОЧЕК (ТЕПЕРЬ 3 СТОЛБИКА, НО С ТВОИМ ДИЗАЙНОМ) 🌟 */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 px-2">
         {filteredPhones.map((phone: any) => (
           <div 
             key={phone.id} 
-            className="relative overflow-hidden bg-[#0A0A0A] border-2 border-white/5 rounded-[1.8rem] p-6 shadow-[0_20px_40px_rgba(0,0,0,0.4)] group transition-all duration-500 hover:border-[#D4AF37]/30 active:scale-[0.98]"
+            className="relative overflow-hidden bg-[#0A0A0A] border-2 border-white/5 rounded-2xl p-2.5 shadow-[0_10px_20px_rgba(0,0,0,0.4)] group transition-all duration-500 hover:border-[#D4AF37]/30 active:scale-[0.98] flex flex-col"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[#121212] via-[#080808] to-[#050505] group-hover:from-[#161616] group-hover:via-[#0A0A0A] transition-colors duration-500" />
             
-            {/* 🌟 ПРАВЫЙ ВЕРХНИЙ УГОЛ (СТАТУС И МЕТКИ КАК ЛЕНТЫ) 🌟 */}
-            <div className="absolute top-5 right-0 flex flex-col items-end gap-2 z-30">
+            {/* ПРАВЫЙ ВЕРХНИЙ УГОЛ (МЕТКИ КАК ЛЕНТЫ, НО УМЕНЬШЕННЫЕ) */}
+            <div className="absolute top-2 right-0 flex flex-col items-end gap-1 z-30">
               
               {/* Статус лентой */}
               <div className={cn(
-                "px-4 py-1.5 rounded-l-lg text-[9px] font-black uppercase tracking-[0.2em] border-y border-l border-r-0 shadow-lg",
+                "px-1.5 py-0.5 rounded-l text-[5px] font-black uppercase tracking-widest border-y border-l border-r-0 shadow-lg",
                 phone.status === 'IN_STOCK' 
                   ? "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/40 shadow-[#D4AF37]/5" 
                   : "bg-[#111] text-gray-500 border-white/5"
@@ -113,12 +113,12 @@ export const CatalogView = ({
                 return (
                   <div 
                     key={label.id}
-                    className="px-4 py-1.5 rounded-l-md text-[9px] font-black uppercase tracking-[0.2em] shadow-lg border-y border-l border-r-0"
+                    className="px-1.5 py-0.5 rounded-l text-[5px] font-black uppercase tracking-widest shadow-lg border-y border-l border-r-0"
                     style={{ 
                       backgroundColor: label.color, 
-                      color: '#000', // Черный текст для контраста с ярким фоном
+                      color: '#000', 
                       borderColor: `${label.color}`,
-                      boxShadow: `0 4px 15px ${label.color}40`
+                      boxShadow: `0 2px 8px ${label.color}40`
                     }}
                   >
                     {label.text}
@@ -127,20 +127,19 @@ export const CatalogView = ({
               })}
             </div>
 
-            <div className="relative z-20 flex flex-col h-full">
+            <div className="relative z-20 flex flex-col h-full flex-grow">
               
-              <div className="flex justify-between items-start mb-6">
-                {/* SIM КАРТА */}
+              <div className="flex justify-start items-start mb-2">
+                {/* МИНИ SIM КАРТА */}
                 <div 
-                  className="relative w-16 h-24 bg-[#111] flex items-center justify-center shadow-2xl border border-[#D4AF37]/30 group-hover:border-[#D4AF37]/60 transition-all"
+                  className="relative w-8 h-12 bg-[#111] flex items-center justify-center shadow-lg border border-[#D4AF37]/30 group-hover:border-[#D4AF37]/60 transition-all"
                   style={{ 
-                    borderRadius: '10px', 
+                    borderRadius: '4px', 
                     clipPath: 'polygon(0 0, 70% 0, 100% 18%, 100% 100%, 0 100%)',
                   }}
                 >
-                  <div className="w-10 h-12 bg-gradient-to-br from-[#F9D423] via-[#D4AF37] to-[#8C7323] rounded-md p-[1.5px] relative z-10">
-                    <div className="w-full h-full grid grid-cols-2 grid-rows-3 gap-[1px] bg-black/50 rounded-[4px] overflow-hidden">
-                       {/* Чип */}
+                  <div className="w-5 h-6 bg-gradient-to-br from-[#F9D423] via-[#D4AF37] to-[#8C7323] rounded-[2px] p-[1px] relative z-10">
+                    <div className="w-full h-full grid grid-cols-2 grid-rows-3 gap-[1px] bg-black/50 rounded-[1px] overflow-hidden">
                        <div className="bg-[#D4AF37]/80" /><div className="bg-[#D4AF37]/80" />
                        <div className="bg-[#D4AF37]/80" /><div className="bg-[#D4AF37]/80" />
                        <div className="bg-[#D4AF37]/80 col-span-2" />
@@ -150,27 +149,27 @@ export const CatalogView = ({
               </div>
 
               {/* НОМЕР */}
-              <div className="mb-6">
-                <p className="text-[#D4AF37]/60 text-[9px] font-black uppercase tracking-[0.5em] mb-2 pl-1">
-                  Premium Number
+              <div className="mb-2">
+                <p className="text-[#D4AF37]/60 text-[5px] font-black uppercase tracking-widest mb-0.5 pl-0.5">
+                  Premium
                 </p>
-                <h3 className="text-[2.8rem] sm:text-[3.2rem] font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#FFEFA1] via-[#D4AF37] to-[#B58B22] leading-none drop-shadow-[0_4px_15px_rgba(212,175,55,0.3)]">
+                <h3 className="text-[12px] sm:text-[14px] font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-[#FFEFA1] via-[#D4AF37] to-[#B58B22] leading-none drop-shadow-md truncate">
                   {phone.number}
                 </h3>
               </div>
 
-              {/* ФУТЕР */}
-              <div className="flex items-center justify-between pt-5 border-t border-white/5">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-widest opacity-60 mb-1">Стоимость</span>
-                  <span className="text-[1.7rem] font-black italic tracking-tight text-white">
+              {/* ФУТЕР (Центрированный для узкой колонки) */}
+              <div className="flex flex-col items-center gap-1.5 pt-2 border-t border-white/5 mt-auto">
+                <div className="flex flex-col items-center">
+                  <span className="text-[5px] font-black text-[#D4AF37] uppercase tracking-widest opacity-60 mb-0.5">Стоимость</span>
+                  <span className="text-[11px] sm:text-xs font-black italic tracking-tight text-white">
                     {phone.price.toLocaleString()} ₸
                   </span>
                 </div>
                 
                 <button 
                   onClick={() => setSelectedPhone(phone)}
-                  className="px-8 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black text-[11px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-[0_10px_25px_rgba(212,175,55,0.2)] active:scale-95"
+                  className="w-full py-1.5 bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black text-[7px] font-black uppercase tracking-widest rounded-lg transition-all shadow-[0_4px_10px_rgba(212,175,55,0.2)] active:scale-95"
                 >
                   Оформить
                 </button>
