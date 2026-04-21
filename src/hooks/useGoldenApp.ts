@@ -27,9 +27,9 @@ export const useGoldenApp = () => {
   const [lt, setLt] = useState('');
   const [lc, setLc] = useState('#D4AF37');
 
-  // --- КОНФИГ ТЕЛЕГРАМА ---
-  const TG_BOT_TOKEN = "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
-  const TG_CHAT_ID = "7620660514";
+  // --- КОНФИГ ТЕЛЕГРАМА (Берем из .env, но оставляем старые как запасные) ---
+  const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN || "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
+  const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID || "7620660514";
 
   // --- МЕТОДЫ ---
 
@@ -96,13 +96,13 @@ export const useGoldenApp = () => {
     }
   }, [user]);
 
-  // Уведомление в Telegram об оплате ПОДПИСКИ
+  // Уведомление в Telegram об оплате ПОДПИСКИ (Исправлено на HTML)
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
     const tgId = userData?.tg_user_id; 
 
     const message = `
-🔔 *НОВАЯ ЗАЯВКА НА ОПЛАТУ*
+🔔 <b>НОВАЯ ЗАЯВКА НА ОПЛАТУ</b>
 👤 Клиент: ${userData?.full_name || 'Не указано'}
 📱 Номер: +${cleanPhone || 'Не указано'}
 📦 Услуга: ${detail}
@@ -131,10 +131,11 @@ export const useGoldenApp = () => {
         body: JSON.stringify({
           chat_id: TG_CHAT_ID,
           text: message,
-          parse_mode: 'Markdown',
+          parse_mode: 'HTML', // ВАЖНО: Используем HTML
           reply_markup: keyboard
         }),
       });
+      if (!res.ok) console.error("TG API Error:", await res.json());
       return res.ok;
     } catch (err) {
       console.error("TG Error:", err);
@@ -142,24 +143,24 @@ export const useGoldenApp = () => {
     }
   };
 
-  // Уведомление в Telegram о покупке КОНКРЕТНОГО НОМЕРА
+  // Уведомление в Telegram о покупке КОНКРЕТНОГО НОМЕРА (Исправлено на HTML)
   const sendPurchaseNotification = async (userData: any, phoneData: any) => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
     const tgId = userData?.tg_user_id;
 
     const clientMention = tgId 
-      ? `[${userData?.full_name || 'Клиент'}](tg://user?id=${tgId})`
-      : `*${userData?.full_name || 'Клиент'}*`;
+      ? `<a href="tg://user?id=${tgId}">${userData?.full_name || 'Клиент'}</a>`
+      : `<b>${userData?.full_name || 'Клиент'}</b>`;
 
     const message = `
-💰 *ЗАЯВКА НА ПОКУПКУ НОМЕРА*
+💰 <b>ЗАЯВКА НА ПОКУПКУ НОМЕРА</b>
 ━━━━━━━━━━━━━━━━━━
-👤 *Клиент:* ${clientMention}
-📱 *Связь:* +${cleanPhone}
-💎 *НОМЕР:* \`${phoneData.number}\`
-💵 *ЦЕНА:* ${phoneData.price.toLocaleString()} ₸
+👤 <b>Клиент:</b> ${clientMention}
+📱 <b>Связь:</b> +${cleanPhone}
+💎 <b>НОМЕР:</b> <code>${phoneData.number}</code>
+💵 <b>ЦЕНА:</b> ${phoneData.price.toLocaleString()} ₸
 ━━━━━━━━━━━━━━━━━━
-⏰ *Время:* ${new Date().toLocaleString('ru-RU')}
+⏰ <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
     `;
 
     const keyboard = {
@@ -186,10 +187,11 @@ export const useGoldenApp = () => {
         body: JSON.stringify({
           chat_id: TG_CHAT_ID,
           text: message,
-          parse_mode: 'Markdown', 
+          parse_mode: 'HTML', // ВАЖНО: Используем HTML
           reply_markup: keyboard
         }),
       });
+      if (!res.ok) console.error("TG API Error:", await res.json());
       return res.ok;
     } catch (err) {
       console.error("Ошибка уведомления о покупке:", err);
