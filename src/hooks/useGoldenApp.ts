@@ -12,6 +12,9 @@ export const useGoldenApp = () => {
     return data ? JSON.parse(data) : null;
   });
 
+  // 🌟 СОСТОЯНИЕ ЗАГРУЗКИ 🌟
+  const [isLoading, setIsLoading] = useState(true);
+
   // --- ДАННЫЕ КАТАЛОГА ---
   const [phones, setPhones] = useState<Phone[]>([]);
   const [labels, setLabels] = useState<Label[]>([]);
@@ -33,17 +36,22 @@ export const useGoldenApp = () => {
 
   // --- МЕТОДЫ ---
 
-  // Загрузка каталога (номера и теги)
+  // Загрузка каталога (номера и теги) с включением индикатора загрузки
   const fetchData = useCallback(async () => {
-    const [pRes, lRes] = await Promise.all([
-      supabase.from('phones')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(200), // <--- ВОТ ЭТА СТРОЧКА СПАСЕТ СИТУАЦИЮ
-      supabase.from('labels').select('*').order('text')
-    ]);
-    if (pRes.data) setPhones(pRes.data);
-    if (lRes.data) setLabels(lRes.data);
+    setIsLoading(true); // Включаем спиннер
+    try {
+      const [pRes, lRes] = await Promise.all([
+        supabase.from('phones')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(200), // <--- ВОТ ЭТА СТРОЧКА СПАСЕТ СИТУАЦИЮ
+        supabase.from('labels').select('*').order('text')
+      ]);
+      if (pRes.data) setPhones(pRes.data);
+      if (lRes.data) setLabels(lRes.data);
+    } finally {
+      setIsLoading(false); // Выключаем спиннер, когда всё готово
+    }
   }, []);
 
   // Обновление данных юзера (Проверка подписки и удалений)
@@ -297,6 +305,7 @@ export const useGoldenApp = () => {
 
   // --- РЕЗУЛЬТАТ ХУКА ---
   return {
+    isLoading, // 🌟 ВОЗВРАЩАЕМ ИНДИКАТОР ЗАГРУЗКИ
     view, setView, user, setUser, 
     phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones,
