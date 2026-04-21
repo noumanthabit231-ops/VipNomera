@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Crown, ShieldCheck, Lock, LogOut, 
   ChevronLeft, Star, Clock, CheckCircle2,
-  Settings, User as UserIcon
+  Settings, User as UserIcon, ChevronDown, CreditCard
 } from 'lucide-react';
 import { cn } from '../cn';
 
@@ -29,10 +29,14 @@ const getDaysDiff = (expiryStr: string) => {
 export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
 
   const isAdmin = user?.role === 'ADMIN';
   const isVIP = user?.subscription === 'ACTIVE' || isAdmin;
   const daysLeft = getDaysDiff(user?.expiry_date);
+
+  // Достаем ссылку на Kaspi из .env (с fallback на главную каспи на всякий случай)
+  const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
   const handleLogout = () => {
     localStorage.clear();
@@ -41,7 +45,8 @@ export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => 
 
   const handleBuyVip = async () => {
     setIsSending(true);
-    const success = await sendPaymentNotification(user, "VIP Подписка (30 дней)");
+    // Отправляем заявку в ТГ
+    const success = await sendPaymentNotification(user, "VIP Подписка (30 дней) - 5 000 ₸");
     setIsSending(false);
     
     if (success) {
@@ -151,7 +156,7 @@ export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => 
             
             <h3 className="text-2xl font-black text-white mb-2 relative z-10">Доступ ограничен</h3>
             <p className="text-gray-400 text-xs font-medium mb-6 relative z-10 w-5/6 leading-relaxed">
-              Чтобы увидеть эксклюзивные и скрытые VIP-номера, необходимо приобрести подписку.
+              Для приобретения эксклюзивных и скрытых VIP-номеров необходимо оформить подписку.
             </p>
 
             <div className="p-4 bg-[#111] rounded-2xl border border-gray-800 mb-6 relative z-10">
@@ -159,27 +164,56 @@ export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => 
                 <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Стоимость</span>
                 <span className="text-[#D4AF37] text-[10px] font-black uppercase tracking-widest">30 дней</span>
               </div>
-              <div className="text-2xl font-black italic tracking-tighter text-white">20 000 ₸</div>
+              <div className="text-2xl font-black italic tracking-tighter text-white">5 000 ₸</div>
             </div>
 
-            <button 
-              onClick={handleBuyVip}
-              disabled={isSending || isSent}
-              className={cn(
-                "w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all relative z-10",
-                isSent 
-                  ? "bg-green-500/10 text-green-500 border border-green-500/30" 
-                  : "bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 active:scale-95 shadow-[0_10px_25px_rgba(212,175,55,0.2)]"
-              )}
+            {/* Кнопка Kaspi (ссылка из .env) */}
+            <a 
+              href={kaspiPaymentLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 py-4 mb-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all bg-[#F14635] text-white hover:bg-[#D93D2E] active:scale-95 shadow-[0_10px_25px_rgba(241,70,53,0.2)] relative z-10"
             >
-              {isSending ? (
-                <span className="animate-pulse">Отправка запроса...</span>
-              ) : isSent ? (
-                <><CheckCircle2 size={16} /> Заявка на рассмотрении</>
-              ) : (
-                <><Star size={16} className="fill-black" /> Приобрести VIP</>
-              )}
+              <CreditCard size={18} /> Оплатить через Kaspi
+            </a>
+
+            {/* Инструкция и подтверждение оплаты */}
+            <button 
+              onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
+              className="w-full flex items-center justify-between p-4 bg-[#111] border border-gray-800 rounded-2xl relative z-10 text-gray-400 hover:text-white transition-colors"
+            >
+              <span className="text-[10px] font-black uppercase tracking-widest">Что делать после оплаты?</span>
+              <ChevronDown size={16} className={cn("transition-transform", isInstructionsOpen ? "rotate-180" : "")} />
             </button>
+
+            {isInstructionsOpen && (
+              <div className="p-5 bg-[#151515] border border-gray-800 rounded-2xl mt-2 relative z-10 animate-in slide-in-from-top-2">
+                <ol className="text-xs text-gray-400 font-medium mb-5 space-y-3 list-decimal pl-4">
+                  <li>Совершите перевод на сумму <b className="text-white">5 000 ₸</b> по кнопке Kaspi выше.</li>
+                  <li>После успешного перевода нажмите кнопку <b className="text-white">«Я оплатил»</b> ниже.</li>
+                  <li>Ожидайте проверки. Администратор моментально активирует ваш VIP статус.</li>
+                </ol>
+
+                <button 
+                  onClick={handleBuyVip}
+                  disabled={isSending || isSent}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all",
+                    isSent 
+                      ? "bg-green-500/10 text-green-500 border border-green-500/30" 
+                      : "bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 active:scale-95 shadow-[0_5px_15px_rgba(212,175,55,0.2)]"
+                  )}
+                >
+                  {isSending ? (
+                    <span className="animate-pulse">Отправка...</span>
+                  ) : isSent ? (
+                    <><CheckCircle2 size={16} /> Заявка у администратора</>
+                  ) : (
+                    <><CheckCircle2 size={16} className="text-black" /> Я оплатил</>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
