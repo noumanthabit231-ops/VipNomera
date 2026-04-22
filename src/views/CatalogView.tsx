@@ -35,7 +35,6 @@ export const CatalogView = ({
       <div className="flex items-center justify-between px-4">
         <div className="relative">
           <div className="absolute -left-2 -top-1 w-8 h-8 bg-[#D4AF37]/10 blur-2xl rounded-full" />
-          {/* 🌟 Убрал italic и uppercase, сменил font-black на font-extrabold */}
           <h1 className={cn("text-3xl font-extrabold tracking-tight leading-none mb-1 relative z-10", isLight ? "text-black" : "text-white")}>
             Exclusive
           </h1>
@@ -72,12 +71,10 @@ export const CatalogView = ({
       <div className="grid grid-cols-3 gap-2 px-4">
         <div className={cn("border rounded-xl p-2 flex flex-col items-center justify-center", isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5")}>
           <span className="text-[9px] font-medium text-gray-500 tracking-wide">Всего</span>
-          {/* 🌟 Убрал italic, поставил font-bold */}
           <span className={cn("text-sm font-bold", isLight ? "text-black" : "text-white")}>{stats.total}</span>
         </div>
         <div className={cn("border rounded-xl p-2 flex flex-col items-center justify-center", isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5")}>
           <span className="text-[9px] font-medium text-[#D4AF37] flex items-center gap-1 tracking-wide"><Zap size={8} /> Свободно</span>
-          {/* 🌟 Убрал italic, поставил font-bold */}
           <span className={cn("text-sm font-bold", isLight ? "text-black" : "text-white")}>{stats.new}</span>
         </div>
         <div className={cn("border rounded-xl p-2 flex flex-col items-center justify-center", isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5")}>
@@ -200,8 +197,8 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                    {/* 🌟 ШРИФТ НОМЕРА: Классический, ровный, без наклона */}
-                    <h3 className={cn("text-[11px] sm:text-xs font-bold tracking-wide transition-colors break-words leading-tight", isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]")}>
+                    {/* 🌟 ШРИФТ НОМЕРА: Добавлен font-mono и убран leading-tight, чтобы не обрезало "живот" цифрам 🌟 */}
+                    <h3 className={cn("text-[11px] sm:text-xs font-mono font-bold tracking-wide transition-colors break-words", isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]")}>
                       {phone.number}
                     </h3>
                     <div className="flex items-center gap-1 mt-1">
