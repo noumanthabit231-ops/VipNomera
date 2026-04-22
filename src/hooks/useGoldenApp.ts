@@ -120,12 +120,13 @@ export const useGoldenApp = () => {
     return false;
   };
 
+  // 1. Загрузка базы (Исправлена сортировка меток)
   const fetchData = useCallback(async () => {
     if (phones.length === 0) setIsLoading(true);
     try {
       const [pRes, lRes] = await Promise.all([
         supabase.from('phones').select('*').order('created_at', { ascending: false }).limit(200),
-        supabase.from('labels').select('*').order('text')
+        supabase.from('labels').select('*').order('created_at', { ascending: true }) // Сортировка по порядку создания
       ]);
       
       if (pRes.data) {
@@ -137,12 +138,13 @@ export const useGoldenApp = () => {
         localStorage.setItem(KEYS.LABELS_CACHE, JSON.stringify(lRes.data));
       }
     } catch (e) {
-      console.error(e);
+      console.error("Ошибка загрузки:", e);
     } finally {
       setIsLoading(false);
     }
-  }, [phones.length]);
+  }, []); // Пустой массив, загружаем один раз при старте
 
+  // 2. Загрузка заказов
   const fetchUserOrders = useCallback(async () => {
     if (!user?.phone) return;
     const { data } = await supabase
@@ -153,11 +155,12 @@ export const useGoldenApp = () => {
     if (data) setUserOrders(data);
   }, [user?.phone]);
 
+  // 3. Обновление данных юзера (Убрана цикличная зависимость)
   const refreshUserData = useCallback(async () => {
     if (!user?.phone) return;
     const cleanPhone = user.phone.replace(/\D/g, '');
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('auth_codes')
       .select('role, subscription, expiry_date, name, tg_user_id')
       .eq('phone', cleanPhone)
@@ -166,9 +169,11 @@ export const useGoldenApp = () => {
       .limit(1)
       .maybeSingle();
 
-    if (!data) {
-      setUser(null);
-      localStorage.removeItem(KEYS.SESSION);
+    if (error || !data) {
+      if (!data && !error) { // Если записи нет — разлогиниваем
+        setUser(null);
+        localStorage.removeItem(KEYS.SESSION);
+      }
       return;
     }
 
@@ -178,12 +183,21 @@ export const useGoldenApp = () => {
       currentSub = 'INACTIVE';
     }
 
-    const updatedUser = { ...user, full_name: data.name, role: data.role || 'USER', subscription: currentSub, expiry_date: data.expiry_date, tg_user_id: data.tg_user_id };
+    const updatedUser = { 
+      ...user, 
+      full_name: data.name, 
+      role: data.role || 'USER', 
+      subscription: currentSub, 
+      expiry_date: data.expiry_date, 
+      tg_user_id: data.tg_user_id 
+    };
+
+    // Сравниваем только через JSON чтобы не частить с обновлениями стейта
     if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
       setUser(updatedUser);
       localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
     }
-  }, [user]);
+  }, [user?.phone]); // ЗАВИСИМОСТЬ ТОЛЬКО ОТ ТЕЛЕФОНА
 
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
