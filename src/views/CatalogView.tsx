@@ -146,6 +146,9 @@ export const CatalogView = ({
             if (isViewLocked) remainingMinutes = Math.ceil(viewTimeLeft / 60000);
             if (isPayLocked) remainingMinutes = Math.ceil(payTimeLeft / 60000);
 
+            // 🌟 Убираем двойные пробелы из базы на всякий случай
+            const displayPhone = phone.number.replace(/\s+/g, ' ');
+
             return (
               <div 
                 key={phone.id}
@@ -197,9 +200,9 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2 overflow-hidden">
-                    {/* 🌟 ДОБАВЛЕН whitespace-nowrap И tracking-tighter, ЧТОБЫ ВЛЕЗЛО В ОДНУ СТРОКУ 🌟 */}
-                    <h3 className={cn("text-[9.5px] sm:text-[11px] font-mono font-bold whitespace-nowrap tracking-tighter transition-colors", isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]")}>
-                      {phone.number}
+                    {/* 🌟 ШРИФТ НОМЕРА: Убран font-mono. Оставлен tracking-tight и whitespace-nowrap */}
+                    <h3 className={cn("text-[10.5px] sm:text-[11.5px] font-bold whitespace-nowrap tracking-tight transition-colors", isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]")}>
+                      {displayPhone}
                     </h3>
                     <div className="flex items-center gap-1 mt-1">
                       <span className="text-[8px] font-bold text-[#D4AF37] tracking-wide">{phone.price.toLocaleString()} ₸</span>
