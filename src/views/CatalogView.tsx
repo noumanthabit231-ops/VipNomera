@@ -11,7 +11,8 @@ import {
   Flame, 
   CheckCheck, 
   History,
-  TrendingUp
+  TrendingUp,
+  FileText
 } from 'lucide-react';
 import { cn } from '../cn';
 
@@ -30,7 +31,8 @@ export const CatalogView = ({
   setActiveLabelFilter, 
   filteredPhones,
   setSelectedPhone, 
-  setView 
+  setView,
+  userOrders // 🌟 ДОБАВЛЕНО: Заявки пользователя
 }: any) => {
 
   // Проверка статуса доступа (VIP или Админ)
@@ -63,14 +65,31 @@ export const CatalogView = ({
           </div>
         </div>
         
-        <button 
-          onClick={() => setView('profile')}
-          className="group relative w-12 h-12 flex items-center justify-center transition-transform active:scale-90"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-[#D4AF37] to-[#8C7323] rounded-2xl rotate-3 group-hover:rotate-6 transition-transform shadow-[0_0_20px_rgba(212,175,55,0.2)]" />
-          <div className="absolute inset-0.5 bg-[#050505] rounded-[14px] z-10" />
-          <Crown className="text-[#D4AF37] relative z-20 group-hover:scale-110 transition-transform" size={22} />
-        </button>
+        <div className="flex items-center gap-3">
+          {/* 🌟 ДОБАВЛЕНО: Кнопка "Мои заявки" */}
+          {user && (
+            <button 
+              onClick={() => setView('my_orders')}
+              className="relative w-10 h-10 flex items-center justify-center bg-[#0A0A0A] border border-white/5 rounded-xl transition-all active:scale-95 hover:border-[#D4AF37]/30"
+            >
+              <FileText className="text-gray-500" size={18} />
+              {userOrders?.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-[#D4AF37] text-black text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(212,175,55,0.5)]">
+                  {userOrders.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          <button 
+            onClick={() => setView('profile')}
+            className="group relative w-12 h-12 flex items-center justify-center transition-transform active:scale-90"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-[#D4AF37] to-[#8C7323] rounded-2xl rotate-3 group-hover:rotate-6 transition-transform shadow-[0_0_20px_rgba(212,175,55,0.2)]" />
+            <div className="absolute inset-0.5 bg-[#050505] rounded-[14px] z-10" />
+            <Crown className="text-[#D4AF37] relative z-20 group-hover:scale-110 transition-transform" size={22} />
+          </button>
+        </div>
       </div>
 
       {/* 2. ИНФО-БАР (STATS) */}
@@ -194,77 +213,120 @@ export const CatalogView = ({
       ) : (
         /* СЕТКА В 3 СТОЛБИКА */
         <div className="grid grid-cols-3 gap-2 px-2 sm:gap-3 sm:px-4">
-          {filteredPhones.map((phone: any, index: number) => (
-            <div 
-              key={phone.id}
-              style={{ animationDelay: `${index * 50}ms` }}
-              className="relative aspect-[3/4] bg-[#0A0A0A] border border-white/5 rounded-xl overflow-hidden group transition-all animate-in fade-in slide-in-from-bottom-2"
-            >
-              {/* Фон-градиент */}
-              <div className="absolute inset-0 bg-gradient-to-b from-[#111] to-black group-hover:from-[#161616] transition-colors" />
-              
-              {/* Верхняя плашка статуса */}
-              <div className="absolute top-0 left-0 right-0 h-1 z-20">
-                 <div className={cn(
-                   "h-full w-full",
-                   phone.status === 'IN_STOCK' ? "bg-[#D4AF37]" : "bg-gray-800"
-                 )} />
-              </div>
+          {filteredPhones.map((phone: any, index: number) => {
+            
+            // 🌟 ДОБАВЛЕНО: Логика статусов брони
+            const isPending = phone.status === 'PENDING';
+            const isSold = phone.status === 'SOLD';
+            const cleanUserPhone = user?.phone?.replace(/\D/g, '');
+            const isLockedByMe = phone.locked_by === cleanUserPhone;
+            const isWaitingAdmin = phone.user_confirmed_at !== null;
+            const isLockExpired = phone.locked_at && !isWaitingAdmin && (new Date().getTime() - new Date(phone.locked_at).getTime() > 7 * 60000);
+            const isActuallyLocked = isPending && !isLockExpired;
 
-              {/* Теги */}
-              <div className="absolute top-2 left-0 right-0 px-1.5 flex justify-between items-start z-30">
-                <div className="flex flex-col gap-0.5">
-                   {phone.label_ids?.slice(0, 1).map((id: string) => {
-                     const label = labels.find((l: any) => l.id === id);
-                     return label && (
-                       <div key={id} className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_rgba(212,175,55,0.5)]" 
-                            style={{ backgroundColor: label.color }} />
-                     );
-                   })}
+            return (
+              <div 
+                key={phone.id}
+                style={{ animationDelay: `${index * 50}ms` }}
+                className={cn(
+                  "relative aspect-[3/4] bg-[#0A0A0A] border border-white/5 rounded-xl overflow-hidden group transition-all animate-in fade-in slide-in-from-bottom-2",
+                  (isSold || (isActuallyLocked && !isLockedByMe)) ? "opacity-60 grayscale-[30%]" : ""
+                )}
+              >
+                {/* Фон-градиент */}
+                <div className="absolute inset-0 bg-gradient-to-b from-[#111] to-black group-hover:from-[#161616] transition-colors" />
+                
+                {/* 🌟 ДОБАВЛЕНО: Оверлей SOLD */}
+                {isSold && (
+                   <div className="absolute inset-0 z-30 bg-black/80 flex items-center justify-center backdrop-blur-[1px]">
+                     <span className="text-red-500 font-black uppercase tracking-widest text-[10px] border-2 border-red-500 px-2 py-0.5 rotate-[-15deg]">SOLD</span>
+                   </div>
+                )}
+
+                {/* 🌟 ДОБАВЛЕНО: Индикатор брони (если кто-то другой смотрит или ждем админа) */}
+                {isActuallyLocked && !isSold && (
+                   <div className="absolute top-7 left-0 right-0 z-20 flex justify-center pointer-events-none">
+                     <span className={cn(
+                       "text-[5px] font-black uppercase px-2 py-0.5 rounded-full shadow-lg text-center", 
+                       isWaitingAdmin ? "bg-orange-500 text-black" : "bg-[#D4AF37] text-black animate-pulse"
+                     )}>
+                       {isWaitingAdmin ? "WAITING" : "PENDING"}
+                     </span>
+                   </div>
+                )}
+
+                {/* Верхняя плашка статуса (цвет меняется от статуса) */}
+                <div className="absolute top-0 left-0 right-0 h-1 z-20">
+                   <div className={cn(
+                     "h-full w-full transition-colors",
+                     isSold ? "bg-red-500" : isActuallyLocked ? "bg-orange-500" : "bg-[#D4AF37]"
+                   )} />
                 </div>
-                {phone.status !== 'IN_STOCK' && <Lock size={8} className="text-gray-600" />}
-              </div>
 
-              {/* Тело карточки */}
-              <div className="relative z-10 h-full flex flex-col p-2 pt-4">
-                {/* Иконка сим-карты (минимализм) */}
-                <div className="mb-auto opacity-40 group-hover:opacity-100 transition-opacity">
-                  <div className="w-5 h-7 bg-gradient-to-br from-gray-800 to-black rounded-[2px] border border-white/10 relative overflow-hidden" 
-                       style={{ clipPath: 'polygon(0 0, 70% 0, 100% 30%, 100% 100%, 0 100%)' }}>
-                    <div className="absolute bottom-1 left-1 w-3 h-3 bg-[#D4AF37]/20 rounded-sm" />
+                {/* Теги */}
+                <div className="absolute top-2 left-0 right-0 px-1.5 flex justify-between items-start z-30">
+                  <div className="flex flex-col gap-0.5">
+                     {phone.label_ids?.slice(0, 1).map((id: string) => {
+                       const label = labels.find((l: any) => l.id === id);
+                       return label && (
+                         <div key={id} className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_rgba(212,175,55,0.5)]" 
+                              style={{ backgroundColor: label.color }} />
+                       );
+                     })}
                   </div>
+                  {isActuallyLocked && !isLockedByMe && <Lock size={8} className="text-orange-500/50" />}
                 </div>
 
-                {/* Номер телефона */}
-                <div className="mt-2">
-                  <h3 className="text-[10px] sm:text-xs font-black italic tracking-tighter text-white group-hover:text-[#D4AF37] transition-colors break-words leading-tight">
-                    {phone.number}
-                  </h3>
-                  <div className="flex items-center gap-1 mt-1">
-                    <span className="text-[6px] font-black text-[#D4AF37] uppercase tracking-tighter">
-                      {phone.price.toLocaleString()} ₸
-                    </span>
+                {/* Тело карточки */}
+                <div className="relative z-10 h-full flex flex-col p-2 pt-4">
+                  {/* Иконка сим-карты (минимализм) */}
+                  <div className="mb-auto opacity-40 group-hover:opacity-100 transition-opacity">
+                    <div className="w-5 h-7 bg-gradient-to-br from-gray-800 to-black rounded-[2px] border border-white/10 relative overflow-hidden" 
+                         style={{ clipPath: 'polygon(0 0, 70% 0, 100% 30%, 100% 100%, 0 100%)' }}>
+                      <div className="absolute bottom-1 left-1 w-3 h-3 bg-[#D4AF37]/20 rounded-sm" />
+                    </div>
                   </div>
-                </div>
 
-                {/* Кнопка действия (компактная) */}
-                <button 
-                  onClick={() => isVIP ? setSelectedPhone(phone) : setView('profile')}
-                  className={cn(
-                    "mt-2 w-full py-1.5 rounded-lg text-[7px] font-black uppercase tracking-tighter transition-all",
-                    isVIP && phone.status === 'IN_STOCK'
-                      ? "bg-[#D4AF37] text-black"
-                      : "bg-[#151515] text-gray-500 border border-white/5"
-                  )}
-                >
-                  {phone.status === 'IN_STOCK' ? (isVIP ? 'BUY' : 'VIP') : 'SOLD'}
-                </button>
+                  {/* Номер телефона */}
+                  <div className="mt-2">
+                    <h3 className="text-[10px] sm:text-xs font-black italic tracking-tighter text-white group-hover:text-[#D4AF37] transition-colors break-words leading-tight">
+                      {phone.number}
+                    </h3>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[6px] font-black text-[#D4AF37] uppercase tracking-tighter">
+                        {phone.price.toLocaleString()} ₸
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 🌟 ОБНОВЛЕНО: Кнопка действия (учитывает бронь и проданные) */}
+                  <button 
+                    disabled={isSold || (isActuallyLocked && !isLockedByMe)}
+                    onClick={() => {
+                      if (!isActuallyLocked || isLockedByMe) {
+                         isVIP ? setSelectedPhone(phone) : setView('profile');
+                      }
+                    }}
+                    className={cn(
+                      "mt-2 w-full py-1.5 rounded-lg text-[7px] font-black uppercase tracking-tighter transition-all z-40 relative",
+                      isSold 
+                        ? "bg-red-500/10 text-red-500 border border-red-500/20" 
+                        : (isActuallyLocked && !isLockedByMe)
+                          ? "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+                          : isVIP 
+                            ? "bg-[#D4AF37] text-black shadow-[0_0_10px_rgba(212,175,55,0.2)]" 
+                            : "bg-[#151515] text-gray-500 border border-white/5"
+                    )}
+                  >
+                    {isSold ? 'SOLD' : (isActuallyLocked && !isLockedByMe) ? 'IN CART' : isVIP ? 'BUY' : 'VIP'}
+                  </button>
+                </div>
+                
+                {/* Эффект свечения при наведении */}
+                <div className="absolute inset-0 pointer-events-none border border-[#D4AF37]/0 group-hover:border-[#D4AF37]/20 rounded-xl transition-all" />
               </div>
-              
-              {/* Эффект свечения при наведении */}
-              <div className="absolute inset-0 pointer-events-none border border-[#D4AF37]/0 group-hover:border-[#D4AF37]/20 rounded-xl transition-all" />
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
