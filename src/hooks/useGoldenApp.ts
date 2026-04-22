@@ -6,13 +6,12 @@ const KEYS = {
   SESSION: 'golden_v2_session',
   PHONES_CACHE: 'golden_v2_phones_cache',
   LABELS_CACHE: 'golden_v2_labels_cache',
-  THEME: 'golden_v2_theme' // 🌟 ДОБАВЛЕНО: Ключ для темы
+  THEME: 'golden_v2_theme'
 };
 
 export const useGoldenApp = () => {
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'my_orders'>('catalog');
   
-  // 🌟 ДОБАВЛЕНО: Состояние светлой темы
   const [isLight, setIsLight] = useState(() => localStorage.getItem(KEYS.THEME) === 'light');
   
   const toggleTheme = () => {
@@ -54,12 +53,10 @@ export const useGoldenApp = () => {
   const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN || "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
   const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID || "7620660514";
 
-  // --- ЛОГИКА 1: ПРОСМОТР НОМЕРА (БРОНЬ 5 МИНУТ) ---
   const tryLockPhone = async (phoneId: string) => {
     if (!user?.phone) return false;
     const cleanPhone = user.phone.replace(/\D/g, '');
     
-    // Берем актуальные данные из стейта
     const phone = phones.find(p => p.id === phoneId);
     if (!phone) return false;
 
@@ -70,19 +67,15 @@ export const useGoldenApp = () => {
     const isViewExpired = phone.status === 'PENDING' && !phone.user_confirmed_at && (now - lockedAt >= 5 * 60000);
     const isPayExpired = phone.status === 'PENDING' && phone.user_confirmed_at && (now - confirmedAt >= 30 * 60000);
 
-    // 🌟 ПРОПУСКАЕМ СВОИХ 🌟
-    // Если номер УЖЕ заблокирован НАМИ и время не вышло - просто открываем окно
     if (phone.status === 'PENDING' && phone.locked_by === cleanPhone) {
-      if (!phone.user_confirmed_at && !isViewExpired) return true; // Своя бронь 5 мин жива
-      if (phone.user_confirmed_at && !isPayExpired) return true;   // Своя бронь 30 мин жива
+      if (!phone.user_confirmed_at && !isViewExpired) return true; 
+      if (phone.user_confirmed_at && !isPayExpired) return true;   
     }
 
-    // Если номер чужой и бронь еще ЖИВА - отказываем сразу
     if (phone.status !== 'IN_STOCK' && !isViewExpired && !isPayExpired) {
       return false; 
     }
 
-    // Занимаем свободный номер (или забираем просроченный)
     let query = supabase
       .from('phones')
       .update({ 
@@ -92,20 +85,18 @@ export const useGoldenApp = () => {
         user_confirmed_at: null 
       })
       .eq('id', phoneId)
-      .eq('status', phone.status); // Защита от одновременного клика (Optimistic lock)
+      .eq('status', phone.status);
 
-    // Если перехватываем, проверяем что его не продлили за долю секунды
     if (phone.locked_at) query = query.eq('locked_at', phone.locked_at);
 
     const { data, error } = await query.select();
 
     if (error || !data || data.length === 0) {
-      return false; // Кто-то успел быстрее
+      return false; 
     }
-    return true; // Бронь успешна
+    return true; 
   };
 
-  // --- ЛОГИКА 2: НАЖАТИЕ НА ОПЛАТУ KASPI (БРОНЬ 30 МИНУТ) ---
   const extendLockToPayment = async (phoneId: string) => {
     await supabase
       .from('phones')
@@ -113,7 +104,6 @@ export const useGoldenApp = () => {
       .eq('id', phoneId);
   };
 
-  // --- ЛОГИКА 3: НАЖАТИЕ "Я ОПЛАТИЛ" (СОЗДАНИЕ ЗАКАЗА В БД) ---
   const createOrder = async (phoneData: any, type: 'PURCHASE' | 'ORDER') => {
     if (!user?.phone) return false;
     const cleanPhone = user.phone.replace(/\D/g, '');
@@ -130,7 +120,6 @@ export const useGoldenApp = () => {
     return false;
   };
 
-  // --- ЗАГРУЗКА БАЗЫ ---
   const fetchData = useCallback(async () => {
     if (phones.length === 0) setIsLoading(true);
     try {
@@ -196,7 +185,6 @@ export const useGoldenApp = () => {
     }
   }, [user]);
 
-  // --- УВЕДОМЛЕНИЯ ---
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
     const tgId = userData?.tg_user_id; 
@@ -239,7 +227,6 @@ export const useGoldenApp = () => {
     }
   };
 
-  // --- ЭФФЕКТЫ И REALTIME ---
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { if (user) fetchUserOrders(); }, [user, fetchUserOrders]);
 
@@ -263,6 +250,22 @@ export const useGoldenApp = () => {
     else localStorage.removeItem(KEYS.SESSION);
   }, [user]);
 
+  // 🌟 ГЛОБАЛЬНАЯ СИНХРОНИЗАЦИЯ ТЕМЫ С ЯДРОМ БРАУЗЕРА 🌟
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    
+    if (isLight) {
+      root.style.backgroundColor = '#F4F4F6';
+      body.style.backgroundColor = '#F4F4F6';
+      body.style.color = '#000000';
+    } else {
+      root.style.backgroundColor = '#050505';
+      body.style.backgroundColor = '#050505';
+      body.style.color = '#ffffff';
+    }
+  }, [isLight]);
+
   const filteredPhones = useMemo(() => {
     const now = Date.now();
     return phones.filter(p => {
@@ -281,6 +284,6 @@ export const useGoldenApp = () => {
     userOrders, fetchUserOrders, fetchData, refreshUserData, handleSavePhone, handleDeletePhone, 
     sendPaymentNotification, sendPurchaseNotification, tryLockPhone, extendLockToPayment, createOrder,
     pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc,
-    isLight, toggleTheme // 🌟 ЭКСПОРТИРУЕМ ФУНКЦИИ ТЕМЫ
+    isLight, toggleTheme
   };
 };
