@@ -9,7 +9,6 @@ const KEYS = {
 };
 
 export const useGoldenApp = () => {
-  // --- СОСТОЯНИЯ ---
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'my_orders'>('catalog');
   
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -33,7 +32,6 @@ export const useGoldenApp = () => {
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
 
-  // Админка
   const [pn, setPn] = useState('');
   const [pr, setPr] = useState('');
   const [st, setSt] = useState<'IN_STOCK' | 'ON_ORDER'>('IN_STOCK');
@@ -44,14 +42,13 @@ export const useGoldenApp = () => {
   const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN || "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
   const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID || "7620660514";
 
-  // --- ЛОГИКА БРОНИРОВАНИЯ ---
-
+  // --- ЛОГИКА 1: ПРОСМОТР НОМЕРА (БРОНЬ 5 МИНУТ) ---
   const tryLockPhone = async (phoneId: string) => {
     if (!user?.phone) return false;
     const cleanPhone = user.phone.replace(/\D/g, '');
     
-    // Вычисляем время 7 минут назад
-    const sevenMinutesAgo = new Date(Date.now() - 7 * 60000).toISOString();
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60000).toISOString();
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60000).toISOString();
 
     const { data, error } = await supabase
       .from('phones')
@@ -59,44 +56,45 @@ export const useGoldenApp = () => {
         status: 'PENDING', 
         locked_at: new Date().toISOString(),
         locked_by: cleanPhone,
-        user_confirmed_at: null // Сброс, если это перехват старой брони
+        user_confirmed_at: null // Сбрасываем длинную бронь, если это новый заход
       })
       .eq('id', phoneId)
-      // Разрешаем если: свободен ИЛИ (был PENDING, но 7 минут прошло И админу еще не подтверждали)
-      .or(`status.eq.IN_STOCK,and(status.eq.PENDING,locked_at.lt.${sevenMinutesAgo},user_confirmed_at.is.null)`)
+      // Разрешено если: IN_STOCK ИЛИ (просрочено 5 мин просмотра) ИЛИ (просрочено 30 мин оплаты)
+      .or(`status.eq.IN_STOCK,and(status.eq.PENDING,user_confirmed_at.is.null,locked_at.lt.${fiveMinutesAgo}),and(status.eq.PENDING,not.user_confirmed_at.is.null,user_confirmed_at.lt.${thirtyMinutesAgo})`)
       .select();
 
     if (error || !data || data.length === 0) {
-      return false; // Кто-то другой успел
+      return false; // Номер уже кто-то забрал
     }
-    return true; // Бронь успешна
+    return true; // Бронь на 5 минут получена
   };
 
-  const confirmUserPayment = async (phoneId: string) => {
-    if (!user?.phone) return false;
-    const cleanPhone = user.phone.replace(/\D/g, '');
-
-    const { error } = await supabase
+  // --- ЛОГИКА 2: НАЖАТИЕ НА ОПЛАТУ (БРОНЬ 30 МИНУТ) ---
+  const extendLockToPayment = async (phoneId: string) => {
+    await supabase
       .from('phones')
       .update({ user_confirmed_at: new Date().toISOString() })
       .eq('id', phoneId);
+  };
 
+  // Создание записи в историю заявок
+  const createOrder = async (phoneData: any, type: 'PURCHASE' | 'ORDER') => {
+    if (!user?.phone) return false;
+    const cleanPhone = user.phone.replace(/\D/g, '');
+    const { error } = await supabase.from('orders').insert([{
+      user_phone: cleanPhone,
+      phone_number: phoneData.number,
+      price: phoneData.price,
+      type: type
+    }]);
     if (!error) {
-      const phoneData = phones.find(p => p.id === phoneId);
-      await supabase.from('orders').insert([{
-        user_phone: cleanPhone,
-        phone_number: phoneData?.number,
-        price: phoneData?.price,
-        type: 'PURCHASE'
-      }]);
       await fetchUserOrders();
       return true;
     }
     return false;
   };
 
-  // --- ЗАГРУЗКА ДАННЫХ ---
-
+  // --- ЗАГРУЗКА БАЗЫ ---
   const fetchData = useCallback(async () => {
     if (phones.length === 0) setIsLoading(true);
     try {
@@ -162,8 +160,7 @@ export const useGoldenApp = () => {
     }
   }, [user]);
 
-  // --- УВЕДОМЛЕНИЯ В TELEGRAM ---
-
+  // --- УВЕДОМЛЕНИЯ ---
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
     const tgId = userData?.tg_user_id; 
@@ -179,9 +176,8 @@ export const useGoldenApp = () => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
     const tgId = userData?.tg_user_id;
     const clientMention = tgId ? `<a href="tg://user?id=${tgId}">${userData?.full_name}</a>` : `<b>${userData?.full_name}</b>`;
-    const message = `💰 <b>КЛИЕНТ ОПЛАТИЛ НОМЕР</b>\n━━━━━━━━━━━━━━━━━━\n👤 ${clientMention}\n📱 +${cleanPhone}\n💎 Лот: <code>${phoneData.number}</code>\n💵 ${phoneData.price.toLocaleString()} ₸\n\n⚠️ <i>Проверьте Kaspi! Если деньги пришли, нажмите Подтвердить.</i>`;
+    const message = `💰 <b>КЛИЕНТ ОПЛАТИЛ НОМЕР</b>\n━━━━━━━━━━━━━━━━━━\n👤 ${clientMention}\n📱 +${cleanPhone}\n💎 Лот: <code>${phoneData.number}</code>\n💵 ${phoneData.price.toLocaleString()} ₸\n\n⚠️ <i>Проверьте Kaspi! Если деньги пришли, нажмите Подтвердить. У вас есть 30 минут до снятия брони.</i>`;
     
-    // ВАЖНО: Кнопка для админа, которая должна менять статус на SOLD
     const keyboard = { inline_keyboard: [
       [{ text: "✅ ПОДТВЕРДИТЬ ПРОДАЖУ", callback_data: `confirm_sale:${phoneData.id}` }],
       [{ text: "🔵 Написать клиенту", url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}` }]
@@ -207,12 +203,10 @@ export const useGoldenApp = () => {
     }
   };
 
-  // --- ЭФФЕКТЫ ---
-
+  // --- ЭФФЕКТЫ И REALTIME ---
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { if (user) fetchUserOrders(); }, [user, fetchUserOrders]);
 
-  // Realtime слежение за статусом номеров (кто-то купил/забронировал)
   useEffect(() => {
     const channel = supabase.channel('public_phones')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'phones' }, (payload) => {
@@ -221,7 +215,6 @@ export const useGoldenApp = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Синхронизация юзера
   useEffect(() => {
     if (!user?.phone || view === 'auth') return;
     refreshUserData();
@@ -234,15 +227,13 @@ export const useGoldenApp = () => {
     else localStorage.removeItem(KEYS.SESSION);
   }, [user]);
 
-  // Фильтрация с логикой автоудаления проданных (через 60 секунд)
   const filteredPhones = useMemo(() => {
     const now = Date.now();
     return phones.filter(p => {
-      // Удаляем если продан более 1 минуты назад
+      // Прячем номер через 60 секунд после продажи
       if (p.status === 'SOLD' && p.sold_at) {
         if (now - new Date(p.sold_at).getTime() > 60000) return false;
       }
-      
       const mSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
       const mLabel = activeLabelFilter ? (p.label_ids || []).includes(activeLabelFilter) : true;
       return mSearch && mLabel;
@@ -253,7 +244,7 @@ export const useGoldenApp = () => {
     isLoading, view, setView, user, setUser, phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones, selectedPhone, setSelectedPhone,
     userOrders, fetchUserOrders, fetchData, refreshUserData, handleSavePhone, handleDeletePhone, 
-    sendPaymentNotification, sendPurchaseNotification, tryLockPhone, confirmUserPayment,
+    sendPaymentNotification, sendPurchaseNotification, tryLockPhone, extendLockToPayment, createOrder,
     pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc
   };
 };
