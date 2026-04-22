@@ -42,34 +42,53 @@ export const useGoldenApp = () => {
   const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN || "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
   const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID || "7620660514";
 
-  // --- ЛОГИКА 1: ПРОСМОТР НОМЕРА (БРОНЬ 5 МИНУТ) ---
+  // --- 🌟 ИСПРАВЛЕННАЯ ЛОГИКА БРОНИ 🌟 ---
   const tryLockPhone = async (phoneId: string) => {
     if (!user?.phone) return false;
     const cleanPhone = user.phone.replace(/\D/g, '');
     
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60000).toISOString();
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60000).toISOString();
+    // Ищем телефон в локальном стейте (он всегда свежий из-за Realtime)
+    const phone = phones.find(p => p.id === phoneId);
+    if (!phone) return false;
 
-    const { data, error } = await supabase
+    const now = Date.now();
+    const lockedAt = phone.locked_at ? new Date(phone.locked_at).getTime() : 0;
+    const confirmedAt = phone.user_confirmed_at ? new Date(phone.user_confirmed_at).getTime() : 0;
+
+    const isFree = phone.status === 'IN_STOCK';
+    const isViewExpired = phone.status === 'PENDING' && !phone.user_confirmed_at && (now - lockedAt >= 5 * 60000);
+    const isPayExpired = phone.status === 'PENDING' && phone.user_confirmed_at && (now - confirmedAt >= 30 * 60000);
+
+    // Если номер занят и время еще не вышло — отказываем сразу
+    if (!isFree && !isViewExpired && !isPayExpired) {
+      return false; 
+    }
+
+    // Атомарное обновление с защитой Optimistic Locking
+    let query = supabase
       .from('phones')
       .update({ 
         status: 'PENDING', 
         locked_at: new Date().toISOString(),
         locked_by: cleanPhone,
-        user_confirmed_at: null // Сбрасываем длинную бронь, если перехватили старый номер
+        user_confirmed_at: null 
       })
       .eq('id', phoneId)
-      // Атомарное условие: свободен ИЛИ 5 минут просмотра истекли ИЛИ 30 минут оплаты истекли
-      .or(`status.eq.IN_STOCK,and(status.eq.PENDING,user_confirmed_at.is.null,locked_at.lt.${fiveMinutesAgo}),and(status.eq.PENDING,not.user_confirmed_at.is.null,user_confirmed_at.lt.${thirtyMinutesAgo})`)
-      .select();
+      .eq('status', phone.status); // Гарантирует, что никто не поменял статус за миллисекунду до нас
+
+    // Если перехватываем старую бронь, проверяем, что ее не продлили
+    if (phone.locked_at) {
+      query = query.eq('locked_at', phone.locked_at);
+    }
+
+    const { data, error } = await query.select();
 
     if (error || !data || data.length === 0) {
-      return false; // Кто-то успел быстрее
+      return false; // Кто-то нажал кнопку быстрее нас
     }
-    return true; // Бронь на 5 минут успешна
+    return true; 
   };
 
-  // --- ЛОГИКА 2: НАЖАТИЕ НА ОПЛАТУ KASPI (БРОНЬ 30 МИНУТ) ---
   const extendLockToPayment = async (phoneId: string) => {
     await supabase
       .from('phones')
@@ -77,7 +96,6 @@ export const useGoldenApp = () => {
       .eq('id', phoneId);
   };
 
-  // --- ЛОГИКА 3: НАЖАТИЕ "Я ОПЛАТИЛ" (СОЗДАНИЕ ЗАКАЗА В БД) ---
   const createOrder = async (phoneData: any, type: 'PURCHASE' | 'ORDER') => {
     if (!user?.phone) return false;
     const cleanPhone = user.phone.replace(/\D/g, '');
@@ -102,7 +120,6 @@ export const useGoldenApp = () => {
         supabase.from('phones').select('*').order('created_at', { ascending: false }).limit(200),
         supabase.from('labels').select('*').order('text')
       ]);
-      
       if (pRes.data) {
         setPhones(pRes.data);
         localStorage.setItem(KEYS.PHONES_CACHE, JSON.stringify(pRes.data));
@@ -131,7 +148,6 @@ export const useGoldenApp = () => {
   const refreshUserData = useCallback(async () => {
     if (!user?.phone) return;
     const cleanPhone = user.phone.replace(/\D/g, '');
-
     const { data } = await supabase
       .from('auth_codes')
       .select('role, subscription, expiry_date, name, tg_user_id')
@@ -177,12 +193,10 @@ export const useGoldenApp = () => {
     const tgId = userData?.tg_user_id;
     const clientMention = tgId ? `<a href="tg://user?id=${tgId}">${userData?.full_name}</a>` : `<b>${userData?.full_name}</b>`;
     const message = `💰 <b>КЛИЕНТ ОПЛАТИЛ НОМЕР</b>\n━━━━━━━━━━━━━━━━━━\n👤 ${clientMention}\n📱 +${cleanPhone}\n💎 Лот: <code>${phoneData.number}</code>\n💵 ${phoneData.price.toLocaleString()} ₸\n\n⚠️ <i>Проверьте Kaspi! Если деньги пришли, нажмите Подтвердить. Номер заблокирован на 30 минут.</i>`;
-    
     const keyboard = { inline_keyboard: [
       [{ text: "✅ ПОДТВЕРДИТЬ ПРОДАЖУ", callback_data: `confirm_sale:${phoneData.id}` }],
       [{ text: "🔵 Написать клиенту", url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}` }]
     ]};
-
     try {
       await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TG_CHAT_ID, text: message, parse_mode: 'HTML', reply_markup: keyboard }) });
       return true;
