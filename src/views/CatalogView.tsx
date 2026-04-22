@@ -197,12 +197,18 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                    {/* 🌟 ШРИФТ НОМЕРА: Максимально стандартный. Никаких обрезаний контейнера, никаких искажений пробелов. 🌟 */}
-                    <h3 className={cn("text-[10px] sm:text-[11px] font-semibold whitespace-nowrap transition-colors", isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]")}>
+                    {/* Вставь свои классы шрифта из кабинета вместо "font-sans font-medium" */}
+                    <h3 className={cn(
+                      "text-[11px] sm:text-[12px] font-sans font-medium whitespace-nowrap transition-colors", 
+                      isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
+                    )}>
                       {phone.number}
                     </h3>
+                    
                     <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[8.5px] font-bold text-[#D4AF37]">{phone.price.toLocaleString()} ₸</span>
+                      <span className="text-[9px] font-bold text-[#D4AF37]">
+                        {phone.price.toLocaleString()} ₸
+                      </span>
                     </div>
                   </div>
 
