@@ -27,6 +27,14 @@ export default function App() {
   const [isHowToOpen, setIsHowToOpen] = useState(false);
   const [isOrderSending, setIsOrderSending] = useState(false);
 
+  // 🌟 СИСТЕМА КРАСИВЫХ УВЕДОМЛЕНИЙ (TOAST) 🌟
+  const [toast, setToast] = useState<{ title: string; message: string; type?: 'error' | 'success' } | null>(null);
+
+  const showToast = (title: string, message: string, type: 'error' | 'success' = 'error') => {
+    setToast({ title, message, type });
+    setTimeout(() => setToast(null), 5000); // Скрываем через 5 секунд
+  };
+
   const hasAccess = useMemo(() => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
@@ -35,24 +43,27 @@ export default function App() {
     return isActive && isNotExpired;
   }, [user]);
 
-  // 🌟 ЭТАП 1: Клик по карточке -> Бронь 5 минут
+  // ЭТАП 1: Клик по карточке -> Бронь 5 минут
   const handleSelectPhoneWrapper = async (phone: any) => {
     const locked = await state.tryLockPhone(phone.id);
     if (locked) {
-      setSelectedPhone(phone); // Открываем шторку
+      setSelectedPhone(phone); // Открываем шторку (нас пустили)
     } else {
-      alert("Этот номер сейчас рассматривает другой клиент. Подождите 5 минут.");
+      showToast(
+        "Доступ ограничен", 
+        "Этот номер сейчас оформляет другой клиент. Пожалуйста, подождите завершения его сессии."
+      );
     }
   };
 
-  // 🌟 ЭТАП 2: Клик по Kaspi -> Бронь 30 минут
+  // ЭТАП 2: Клик по Kaspi -> Бронь 30 минут
   const handleStartPayment = async () => {
     await state.extendLockToPayment(selectedPhone.id);
     window.open(KASPI_PAY_LINK, '_blank');
     setIsHowToOpen(true);
   };
 
-  // 🌟 ЭТАП 3: Нажатие "Я оплатил"
+  // ЭТАП 3: Нажатие "Я оплатил"
   const handleFinalConfirm = async () => {
     if (isOrderSending) return;
     setIsOrderSending(true);
@@ -60,17 +71,45 @@ export default function App() {
     const success = await createOrder(selectedPhone, 'PURCHASE');
     if (success) {
       await state.sendPurchaseNotification(user, selectedPhone);
-      alert("Заявка успешно отправлена! Номер закреплен за вами на 30 минут, пока администратор проверяет оплату.");
+      showToast(
+        "Успешно!", 
+        "Заявка отправлена. Номер закреплен за вами на 30 минут, пока администратор проверяет оплату.",
+        "success"
+      );
       setSelectedPhone(null);
       setIsHowToOpen(false);
     } else {
-      alert("Ошибка при отправке заявки. Пожалуйста, попробуйте позже.");
+      showToast("Ошибка", "Ошибка при отправке заявки. Пожалуйста, попробуйте позже.");
     }
     setIsOrderSending(false);
   };
 
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-[#D4AF37]/30">
+      
+      {/* 🌟 КОМПОНЕНТ TOAST 🌟 */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -50, scale: 0.95 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm bg-[#1A1A1A] border border-gray-800 rounded-2xl p-4 shadow-2xl flex items-start gap-4"
+          >
+            <div className={cn("p-2 rounded-full", toast.type === 'error' ? "bg-orange-500/10 text-orange-500" : "bg-green-500/10 text-green-500")}>
+               {toast.type === 'error' ? <Lock size={20} /> : <CheckCircle2 size={20} />}
+            </div>
+            <div className="flex-1">
+               <h4 className="text-white font-black uppercase text-[10px] tracking-widest mb-1">{toast.title}</h4>
+               <p className="text-gray-400 text-xs leading-tight">{toast.message}</p>
+            </div>
+            <button onClick={() => setToast(null)} className="text-gray-600 hover:text-white transition-colors mt-0.5">
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <main className="max-w-xl mx-auto px-5 min-h-screen pb-32">
         <AnimatePresence mode="wait">
           <motion.div
@@ -81,7 +120,7 @@ export default function App() {
             transition={{ duration: 0.15, ease: "easeInOut" }}
             className="will-change-opacity"
           >
-            {/* 🌟 КАТАЛОГ С ОБНОВЛЕННЫМ setSelectedPhone 🌟 */}
+            {/* КАТАЛОГ С ОБНОВЛЕННЫМ setSelectedPhone */}
             {view === 'catalog' && (
               <CatalogView 
                 {...state} isLoading={isLoading} user={user} 
@@ -89,7 +128,7 @@ export default function App() {
               />
             )}
             
-            {/* 🌟 МОИ ЗАЯВКИ 🌟 */}
+            {/* МОИ ЗАЯВКИ */}
             {view === 'my_orders' && (
                <div className="pt-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <button onClick={() => setView('catalog')} className="text-gray-500 uppercase font-black text-[10px] mb-8 flex items-center gap-2 tracking-widest hover:text-white transition-colors">
@@ -152,44 +191,20 @@ export default function App() {
 
       <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 w-[85%] max-w-sm bg-[#111111]/95 rounded-[2.5rem] border border-[#D4AF37]/20 shadow-2xl shadow-[#D4AF37]/5 backdrop-blur-md">
         <div className="flex items-center justify-around h-20">
-          <button 
-            onClick={() => setView('catalog')} 
-            className={cn(
-              "flex flex-col items-center gap-1.5 flex-1 transition-all duration-300", 
-              view === 'catalog' ? "text-[#D4AF37] scale-110" : "text-gray-500 hover:text-gray-300"
-            )}
-          >
-            <Smartphone size={24} />
-            <span className="text-[9px] font-black uppercase tracking-tighter">Маркет</span>
+          <button onClick={() => setView('catalog')} className={cn("flex flex-col items-center gap-1.5 flex-1 transition-all duration-300", view === 'catalog' ? "text-[#D4AF37] scale-110" : "text-gray-500 hover:text-gray-300")}>
+            <Smartphone size={24} /><span className="text-[9px] font-black uppercase tracking-tighter">Маркет</span>
           </button>
-          
-          <button 
-            onClick={() => setView(user ? 'profile' : 'auth')} 
-            className={cn(
-              "flex flex-col items-center gap-1.5 flex-1 transition-all duration-300", 
-              (view === 'profile' || view === 'auth') ? "text-[#D4AF37] scale-110" : "text-gray-500 hover:text-gray-300"
-            )}
-          >
-            <UserIcon size={24} />
-            <span className="text-[9px] font-black uppercase tracking-tighter">
-              {user ? 'Кабинет' : 'Войти'}
-            </span>
+          <button onClick={() => setView(user ? 'profile' : 'auth')} className={cn("flex flex-col items-center gap-1.5 flex-1 transition-all duration-300", (view === 'profile' || view === 'auth') ? "text-[#D4AF37] scale-110" : "text-gray-500 hover:text-gray-300")}>
+            <UserIcon size={24} /><span className="text-[9px] font-black uppercase tracking-tighter">{user ? 'Кабинет' : 'Войти'}</span>
           </button>
         </div>
       </nav>
 
-      {/* ШТОРКА ОФОРМЛЕНИЯ ЗАКАЗА */}
-      <BottomSheet 
-        isOpen={!!selectedPhone} 
-        onClose={() => { setSelectedPhone(null); setIsHowToOpen(false); }} 
-        title="Оформление заказа"
-      >
+      <BottomSheet isOpen={!!selectedPhone} onClose={() => { setSelectedPhone(null); setIsHowToOpen(false); }} title="Оформление заказа">
         {selectedPhone && (
           <div className="space-y-8 text-center animate-in fade-in zoom-in duration-300 bg-[#0A0A0A] p-2 rounded-t-3xl -mx-4 -mb-4 pb-10">
-            
             <div className="bg-[#111] rounded-[2.5rem] py-10 px-4 border border-[#D4AF37]/30 relative overflow-hidden shadow-2xl shadow-[#D4AF37]/5">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-50" />
-              
               <p className="text-[#D4AF37] text-[10px] font-black uppercase tracking-[0.3em] mb-2">Выбранный лот</p>
               <h3 className="text-4xl sm:text-5xl font-mono font-black text-white tracking-tighter mb-4 leading-none">{selectedPhone.number}</h3>
               <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 px-5 py-2.5 rounded-full border border-[#D4AF37]/20">
@@ -201,24 +216,14 @@ export default function App() {
             <div className="space-y-3 px-2">
               {hasAccess ? (
                 <>
-                  <Button 
-                    fullWidth 
-                    size="lg" 
-                    className="py-6 text-lg bg-[#F14635] text-white hover:opacity-90 border-none shadow-[0_10px_20px_rgba(241,70,53,0.1)] font-black uppercase tracking-tight rounded-2xl" 
-                    onClick={handleStartPayment}
-                  >
+                  <Button fullWidth size="lg" className="py-6 text-lg bg-[#F14635] text-white hover:opacity-90 border-none shadow-[0_10px_20px_rgba(241,70,53,0.1)] font-black uppercase tracking-tight rounded-2xl" onClick={handleStartPayment}>
                     <ExternalLink size={20} className="mr-2" /> Оплатить через Kaspi
                   </Button>
 
                   <div className="border border-gray-800 rounded-2xl overflow-hidden bg-[#0F0F0F] transition-all">
-                    <button 
-                      onClick={() => setIsHowToOpen(!isHowToOpen)} 
-                      className="w-full p-5 flex justify-between items-center text-[10px] font-black uppercase text-gray-500 tracking-widest hover:bg-white/5 transition-colors"
-                    >
-                      Что делать дальше? 
-                      <ChevronDown size={14} className={cn("transition-transform duration-300", isHowToOpen ? "rotate-180" : "")}/>
+                    <button onClick={() => setIsHowToOpen(!isHowToOpen)} className="w-full p-5 flex justify-between items-center text-[10px] font-black uppercase text-gray-500 tracking-widest hover:bg-white/5 transition-colors">
+                      Что делать дальше? <ChevronDown size={14} className={cn("transition-transform duration-300", isHowToOpen ? "rotate-180" : "")}/>
                     </button>
-                    
                     {isHowToOpen && (
                       <div className="p-6 text-left text-[11px] text-gray-400 space-y-5 border-t border-gray-800 animate-in slide-in-from-top-2 duration-300">
                         <div className="flex gap-3">
@@ -229,17 +234,7 @@ export default function App() {
                            <div className="w-5 h-5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center flex-shrink-0 text-[#D4AF37] font-black text-[9px]">2</div>
                            <p>После завершения платежа вернитесь сюда и нажмите кнопку <b>«Я оплатил»</b>.</p>
                         </div>
-                        <div className="flex gap-3">
-                           <div className="w-5 h-5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center flex-shrink-0 text-[#D4AF37] font-black text-[9px]">3</div>
-                           <p>Ваша заявка попадет в систему, и администратор свяжется с вами для оформления номера.</p>
-                        </div>
-                        
-                        <Button 
-                          fullWidth 
-                          className="py-5 bg-[#D4AF37] text-black hover:bg-[#B58B22] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-[#D4AF37]/10 transition-all active:scale-95 mt-2"
-                          onClick={handleFinalConfirm}
-                          disabled={isOrderSending}
-                        >
+                        <Button fullWidth className="py-5 bg-[#D4AF37] text-black hover:bg-[#B58B22] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-[#D4AF37]/10 transition-all active:scale-95 mt-2" onClick={handleFinalConfirm} disabled={isOrderSending}>
                           {isOrderSending ? "Отправка..." : "Я оплатил"}
                         </Button>
                       </div>
@@ -252,12 +247,7 @@ export default function App() {
                     <Lock size={16} />
                     <span className="text-[10px] font-black uppercase tracking-widest">Бронирование доступно только для VIP</span>
                   </div>
-                  <Button 
-                    fullWidth 
-                    size="lg" 
-                    className="py-6 text-lg bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 border-none font-black uppercase rounded-2xl shadow-xl shadow-[#D4AF37]/10" 
-                    onClick={() => { setSelectedPhone(null); setView('profile'); }}
-                  >
+                  <Button fullWidth size="lg" className="py-6 text-lg bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 border-none font-black uppercase rounded-2xl shadow-xl shadow-[#D4AF37]/10" onClick={() => { setSelectedPhone(null); setView('profile'); }}>
                     <Crown size={22} className="mr-2" /> Открыть VIP доступ
                   </Button>
                 </div>
