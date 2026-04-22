@@ -56,20 +56,20 @@ export const useGoldenApp = () => {
         status: 'PENDING', 
         locked_at: new Date().toISOString(),
         locked_by: cleanPhone,
-        user_confirmed_at: null // Сбрасываем длинную бронь, если это новый заход
+        user_confirmed_at: null // Сбрасываем длинную бронь, если перехватили старый номер
       })
       .eq('id', phoneId)
-      // Разрешено если: IN_STOCK ИЛИ (просрочено 5 мин просмотра) ИЛИ (просрочено 30 мин оплаты)
+      // Атомарное условие: свободен ИЛИ 5 минут просмотра истекли ИЛИ 30 минут оплаты истекли
       .or(`status.eq.IN_STOCK,and(status.eq.PENDING,user_confirmed_at.is.null,locked_at.lt.${fiveMinutesAgo}),and(status.eq.PENDING,not.user_confirmed_at.is.null,user_confirmed_at.lt.${thirtyMinutesAgo})`)
       .select();
 
     if (error || !data || data.length === 0) {
-      return false; // Номер уже кто-то забрал
+      return false; // Кто-то успел быстрее
     }
-    return true; // Бронь на 5 минут получена
+    return true; // Бронь на 5 минут успешна
   };
 
-  // --- ЛОГИКА 2: НАЖАТИЕ НА ОПЛАТУ (БРОНЬ 30 МИНУТ) ---
+  // --- ЛОГИКА 2: НАЖАТИЕ НА ОПЛАТУ KASPI (БРОНЬ 30 МИНУТ) ---
   const extendLockToPayment = async (phoneId: string) => {
     await supabase
       .from('phones')
@@ -77,7 +77,7 @@ export const useGoldenApp = () => {
       .eq('id', phoneId);
   };
 
-  // Создание записи в историю заявок
+  // --- ЛОГИКА 3: НАЖАТИЕ "Я ОПЛАТИЛ" (СОЗДАНИЕ ЗАКАЗА В БД) ---
   const createOrder = async (phoneData: any, type: 'PURCHASE' | 'ORDER') => {
     if (!user?.phone) return false;
     const cleanPhone = user.phone.replace(/\D/g, '');
@@ -176,7 +176,7 @@ export const useGoldenApp = () => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
     const tgId = userData?.tg_user_id;
     const clientMention = tgId ? `<a href="tg://user?id=${tgId}">${userData?.full_name}</a>` : `<b>${userData?.full_name}</b>`;
-    const message = `💰 <b>КЛИЕНТ ОПЛАТИЛ НОМЕР</b>\n━━━━━━━━━━━━━━━━━━\n👤 ${clientMention}\n📱 +${cleanPhone}\n💎 Лот: <code>${phoneData.number}</code>\n💵 ${phoneData.price.toLocaleString()} ₸\n\n⚠️ <i>Проверьте Kaspi! Если деньги пришли, нажмите Подтвердить. У вас есть 30 минут до снятия брони.</i>`;
+    const message = `💰 <b>КЛИЕНТ ОПЛАТИЛ НОМЕР</b>\n━━━━━━━━━━━━━━━━━━\n👤 ${clientMention}\n📱 +${cleanPhone}\n💎 Лот: <code>${phoneData.number}</code>\n💵 ${phoneData.price.toLocaleString()} ₸\n\n⚠️ <i>Проверьте Kaspi! Если деньги пришли, нажмите Подтвердить. Номер заблокирован на 30 минут.</i>`;
     
     const keyboard = { inline_keyboard: [
       [{ text: "✅ ПОДТВЕРДИТЬ ПРОДАЖУ", callback_data: `confirm_sale:${phoneData.id}` }],
@@ -230,7 +230,6 @@ export const useGoldenApp = () => {
   const filteredPhones = useMemo(() => {
     const now = Date.now();
     return phones.filter(p => {
-      // Прячем номер через 60 секунд после продажи
       if (p.status === 'SOLD' && p.sold_at) {
         if (now - new Date(p.sold_at).getTime() > 60000) return false;
       }
