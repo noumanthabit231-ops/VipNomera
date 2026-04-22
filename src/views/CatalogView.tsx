@@ -219,7 +219,7 @@ export const CatalogView = ({
                       (isLight ? "bg-gray-100 text-gray-500 border border-gray-200" : "bg-[#151515] text-gray-500 border border-white/5")
                     )}
                   >
-                    {isSold ? 'SOLD' : (isActuallyLocked && !isLockedByMe) ? `ЖДИТЕ ${remainingMinutes} МИН` : isVIP ? 'BUY' : 'VIP'}
+                    {isSold ? 'SOLD' : (isActuallyLocked && !isLockedByMe) ? `ЖДИТЕ ${remainingMinutes} МИН` : isVIP ? 'Купить' : 'VIP'}
                   </button>
                 </div>
               </div>
