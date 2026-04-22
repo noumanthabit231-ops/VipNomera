@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { 
   Search, SlidersHorizontal, Crown, PackageSearch, 
   Lock, Zap, TrendingUp, FileText
@@ -21,6 +21,13 @@ export const CatalogView = ({
       new: phones?.filter((p: any) => p.status === 'IN_STOCK').length || 0,
     };
   }, [phones]);
+
+  // 🌟 Внутренний таймер для обновления минут на карточках
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 10000); // Обновляем "сейчас" каждые 10 секунд
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="pt-6 space-y-5 pb-24 animate-in fade-in duration-700 selection:bg-[#D4AF37]/30">
@@ -120,8 +127,7 @@ export const CatalogView = ({
         <div className="grid grid-cols-3 gap-2 px-2 sm:gap-3 sm:px-4">
           {filteredPhones.map((phone: any, index: number) => {
             
-            // 🌟 РАСЧЕТ ТАЙМЕРОВ 🌟
-            const now = new Date().getTime();
+            // 🌟 РАСЧЕТ ТАЙМЕРОВ И ОСТАТКА МИНУТ 🌟
             const cleanUserPhone = user?.phone?.replace(/\D/g, '');
             const isLockedByMe = phone.locked_by === cleanUserPhone;
             const isSold = phone.status === 'SOLD';
@@ -129,13 +135,20 @@ export const CatalogView = ({
             const lockedAtTime = phone.locked_at ? new Date(phone.locked_at).getTime() : 0;
             const confirmedAtTime = phone.user_confirmed_at ? new Date(phone.user_confirmed_at).getTime() : 0;
 
+            const viewTimeLeft = 5 * 60000 - (now - lockedAtTime);
+            const payTimeLeft = 30 * 60000 - (now - confirmedAtTime);
+
             // Бронь 5 минут (просто открыл шторку)
-            const isViewLocked = phone.status === 'PENDING' && !phone.user_confirmed_at && (now - lockedAtTime < 5 * 60000);
-            
+            const isViewLocked = phone.status === 'PENDING' && !phone.user_confirmed_at && viewTimeLeft > 0;
             // Бронь 30 минут (нажал оплатить)
-            const isPayLocked = phone.status === 'PENDING' && phone.user_confirmed_at && (now - confirmedAtTime < 30 * 60000);
+            const isPayLocked = phone.status === 'PENDING' && phone.user_confirmed_at && payTimeLeft > 0;
 
             const isActuallyLocked = isViewLocked || isPayLocked;
+
+            // Высчитываем сколько минут писать на кнопке
+            let remainingMinutes = 0;
+            if (isViewLocked) remainingMinutes = Math.ceil(viewTimeLeft / 60000);
+            if (isPayLocked) remainingMinutes = Math.ceil(payTimeLeft / 60000);
 
             return (
               <div 
@@ -155,7 +168,7 @@ export const CatalogView = ({
                    </div>
                 )}
 
-                {/* БЕЙДЖИ СТАТУСОВ (СМОТРЯТ ИЛИ ОПЛАЧИВАЮТ) */}
+                {/* БЕЙДЖИ СТАТУСОВ */}
                 {isActuallyLocked && !isSold && (
                    <div className="absolute top-7 left-0 right-0 z-20 flex justify-center pointer-events-none">
                      <span className={cn(
@@ -195,7 +208,7 @@ export const CatalogView = ({
                     </div>
                   </div>
 
-                  {/* 🌟 КНОПКА (УМНАЯ БЛОКИРОВКА) 🌟 */}
+                  {/* 🌟 КНОПКА С ТАЙМЕРОМ 🌟 */}
                   <button 
                     disabled={isSold || (isActuallyLocked && !isLockedByMe)}
                     onClick={() => {
@@ -210,7 +223,7 @@ export const CatalogView = ({
                       isVIP ? "bg-[#D4AF37] text-black shadow-[0_0_10px_rgba(212,175,55,0.2)]" : "bg-[#151515] text-gray-500 border border-white/5"
                     )}
                   >
-                    {isSold ? 'SOLD' : (isActuallyLocked && !isLockedByMe) ? 'ЗАНЯТО' : isVIP ? 'BUY' : 'VIP'}
+                    {isSold ? 'SOLD' : (isActuallyLocked && !isLockedByMe) ? `ЖДИТЕ ${remainingMinutes} МИН` : isVIP ? 'BUY' : 'VIP'}
                   </button>
                 </div>
                 
