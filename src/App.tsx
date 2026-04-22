@@ -10,6 +10,7 @@ import { CatalogView } from './views/CatalogView';
 import { AdminView } from './views/AdminView';
 import { AuthView } from './views/AuthView';
 import { ProfileView } from './views/ProfileView';
+import { SubscriptionView } from './views/SubscriptionView';
 import { BottomSheet } from './components/ui/BottomSheet';
 import { Button } from './components/ui/Button';
 import { cn } from './cn';
@@ -35,17 +36,30 @@ export default function App() {
     return isActive && isNotExpired;
   }, [user]);
 
-  const handleConfirmPurchase = async () => {
+  // ЭТАП 1: Нажатие на кнопку Kaspi (Короткая бронь на 7 минут)
+  const handleStartPayment = async () => {
+    const locked = await state.tryLockPhone(selectedPhone.id);
+    if (locked) {
+      window.open(KASPI_PAY_LINK, '_blank');
+      setIsHowToOpen(true); // Открываем инструкцию
+    } else {
+      alert("К сожалению, кто-то успел начать оформление этого номера раньше вас.");
+      setSelectedPhone(null); // Закрываем шторку, так как номер увели
+    }
+  };
+
+  // ЭТАП 2: Нажатие на "Я оплатил" (Жесткая бронь до подтверждения админа)
+  const handleFinalConfirm = async () => {
     if (isOrderSending) return;
     setIsOrderSending(true);
     
-    // 1. Сохраняем в БД
-    const success = await createOrder(selectedPhone, 'PURCHASE');
+    // Подтверждаем оплату в базе (создастся заказ и обновится user_confirmed_at)
+    const success = await state.confirmUserPayment(selectedPhone.id);
     
     if (success) {
-      // 2. Отправляем в ТГ
+      // Отправляем уведомление в Telegram админу
       await state.sendPurchaseNotification(user, selectedPhone);
-      alert("Ваша заявка принята! Менеджер свяжется с вами в ближайшее время.");
+      alert("Ваша заявка принята! Номер закреплен за вами до подтверждения оплаты администратором.");
       setSelectedPhone(null);
       setIsHowToOpen(false);
     } else {
@@ -192,7 +206,7 @@ export default function App() {
                     fullWidth 
                     size="lg" 
                     className="py-6 text-lg bg-[#F14635] text-white hover:opacity-90 border-none shadow-[0_10px_20px_rgba(241,70,53,0.1)] font-black uppercase tracking-tight rounded-2xl" 
-                    onClick={() => window.open(KASPI_PAY_LINK, '_blank')}
+                    onClick={handleStartPayment}
                   >
                     <ExternalLink size={20} className="mr-2" /> Оплатить через Kaspi
                   </Button>
@@ -224,7 +238,7 @@ export default function App() {
                         <Button 
                           fullWidth 
                           className="py-5 bg-[#D4AF37] text-black hover:bg-[#B58B22] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-[#D4AF37]/10 transition-all active:scale-95 mt-2"
-                          onClick={handleConfirmPurchase}
+                          onClick={handleFinalConfirm}
                           disabled={isOrderSending}
                         >
                           {isOrderSending ? "Отправка..." : "Я оплатил"}
