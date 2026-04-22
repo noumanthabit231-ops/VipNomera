@@ -196,9 +196,9 @@ export const CatalogView = ({
                     </div>
                   </div>
 
-                  <div className="mt-2">
-                    {/* 🌟 ШРИФТ НОМЕРА: Добавлен font-mono и убран leading-tight, чтобы не обрезало "живот" цифрам 🌟 */}
-                    <h3 className={cn("text-[11px] sm:text-xs font-mono font-bold tracking-wide transition-colors break-words", isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]")}>
+                  <div className="mt-2 overflow-hidden">
+                    {/* 🌟 ДОБАВЛЕН whitespace-nowrap И tracking-tighter, ЧТОБЫ ВЛЕЗЛО В ОДНУ СТРОКУ 🌟 */}
+                    <h3 className={cn("text-[9.5px] sm:text-[11px] font-mono font-bold whitespace-nowrap tracking-tighter transition-colors", isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]")}>
                       {phone.number}
                     </h3>
                     <div className="flex items-center gap-1 mt-1">
