@@ -5,12 +5,24 @@ import { Phone, Label, UserProfile } from '../types';
 const KEYS = { 
   SESSION: 'golden_v2_session',
   PHONES_CACHE: 'golden_v2_phones_cache',
-  LABELS_CACHE: 'golden_v2_labels_cache'
+  LABELS_CACHE: 'golden_v2_labels_cache',
+  THEME: 'golden_v2_theme' // 🌟 ДОБАВЛЕНО: Ключ для темы
 };
 
 export const useGoldenApp = () => {
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'my_orders'>('catalog');
   
+  // 🌟 ДОБАВЛЕНО: Состояние светлой темы
+  const [isLight, setIsLight] = useState(() => localStorage.getItem(KEYS.THEME) === 'light');
+  
+  const toggleTheme = () => {
+    setIsLight(prev => {
+      const next = !prev;
+      localStorage.setItem(KEYS.THEME, next ? 'light' : 'dark');
+      return next;
+    });
+  };
+
   const [user, setUser] = useState<UserProfile | null>(() => {
     const data = localStorage.getItem(KEYS.SESSION);
     return data ? JSON.parse(data) : null;
@@ -268,6 +280,7 @@ export const useGoldenApp = () => {
     activeLabelFilter, setActiveLabelFilter, filteredPhones, selectedPhone, setSelectedPhone,
     userOrders, fetchUserOrders, fetchData, refreshUserData, handleSavePhone, handleDeletePhone, 
     sendPaymentNotification, sendPurchaseNotification, tryLockPhone, extendLockToPayment, createOrder,
-    pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc
+    pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc,
+    isLight, toggleTheme // 🌟 ЭКСПОРТИРУЕМ ФУНКЦИИ ТЕМЫ
   };
 };
