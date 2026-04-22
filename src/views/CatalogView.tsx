@@ -202,13 +202,16 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                    <h3 className="text-[10px] sm:text-xs font-black italic tracking-tighter text-white group-hover:text-[#D4AF37] transition-colors break-words leading-tight">{phone.number}</h3>
+                    {/* 🌟 ЗДЕСЬ ИЗМЕНИЛСЯ ШРИФТ НОМЕРА 🌟 */}
+                    <h3 className="text-[10px] sm:text-xs font-bold tracking-wide text-white group-hover:text-[#D4AF37] transition-colors break-words leading-tight">
+                      {phone.number}
+                    </h3>
                     <div className="flex items-center gap-1 mt-1">
                       <span className="text-[6px] font-black text-[#D4AF37] uppercase tracking-tighter">{phone.price.toLocaleString()} ₸</span>
                     </div>
                   </div>
 
-                  {/* 🌟 КНОПКА С ТАЙМЕРОМ 🌟 */}
+                  {/* КНОПКА С ТАЙМЕРОМ */}
                   <button 
                     disabled={isSold || (isActuallyLocked && !isLockedByMe)}
                     onClick={() => {
