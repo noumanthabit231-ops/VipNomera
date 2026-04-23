@@ -53,55 +53,11 @@ export const useGoldenApp = () => {
   const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN || "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
   const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID || "7620660514";
 
+  // 🌟 УПРОЩЕННАЯ ПРОВЕРКА (БЕЗ ТАЙМЕРОВ) 🌟
   const tryLockPhone = async (phoneId: string) => {
-    if (!user?.phone) return false;
-    const cleanPhone = user.phone.replace(/\D/g, '');
-    
     const phone = phones.find(p => p.id === phoneId);
-    if (!phone) return false;
-
-    const now = Date.now();
-    const lockedAt = phone.locked_at ? new Date(phone.locked_at).getTime() : 0;
-    const confirmedAt = phone.user_confirmed_at ? new Date(phone.user_confirmed_at).getTime() : 0;
-
-    const isViewExpired = phone.status === 'PENDING' && !phone.user_confirmed_at && (now - lockedAt >= 5 * 60000);
-    const isPayExpired = phone.status === 'PENDING' && phone.user_confirmed_at && (now - confirmedAt >= 30 * 60000);
-
-    if (phone.status === 'PENDING' && phone.locked_by === cleanPhone) {
-      if (!phone.user_confirmed_at && !isViewExpired) return true; 
-      if (phone.user_confirmed_at && !isPayExpired) return true;   
-    }
-
-    if (phone.status !== 'IN_STOCK' && !isViewExpired && !isPayExpired) {
-      return false; 
-    }
-
-    let query = supabase
-      .from('phones')
-      .update({ 
-        status: 'PENDING', 
-        locked_at: new Date().toISOString(),
-        locked_by: cleanPhone,
-        user_confirmed_at: null 
-      })
-      .eq('id', phoneId)
-      .eq('status', phone.status);
-
-    if (phone.locked_at) query = query.eq('locked_at', phone.locked_at);
-
-    const { data, error } = await query.select();
-
-    if (error || !data || data.length === 0) {
-      return false; 
-    }
-    return true; 
-  };
-
-  const extendLockToPayment = async (phoneId: string) => {
-    await supabase
-      .from('phones')
-      .update({ user_confirmed_at: new Date().toISOString() })
-      .eq('id', phoneId);
+    if (!phone || phone.status === 'SOLD') return false;
+    return true; // Просто разрешаем открыть шторку, если не продано
   };
 
   const createOrder = async (phoneData: any, type: 'PURCHASE' | 'ORDER') => {
@@ -120,13 +76,12 @@ export const useGoldenApp = () => {
     return false;
   };
 
-  // 1. Загрузка базы (Исправлена сортировка меток)
   const fetchData = useCallback(async () => {
     if (phones.length === 0) setIsLoading(true);
     try {
       const [pRes, lRes] = await Promise.all([
         supabase.from('phones').select('*').order('created_at', { ascending: false }).limit(200),
-        supabase.from('labels').select('*').order('created_at', { ascending: true }) // Сортировка по порядку создания
+        supabase.from('labels').select('*').order('created_at', { ascending: true }) 
       ]);
       
       if (pRes.data) {
@@ -142,9 +97,8 @@ export const useGoldenApp = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Пустой массив, загружаем один раз при старте
+  }, []); 
 
-  // 2. Загрузка заказов
   const fetchUserOrders = useCallback(async () => {
     if (!user?.phone) return;
     const { data } = await supabase
@@ -155,7 +109,6 @@ export const useGoldenApp = () => {
     if (data) setUserOrders(data);
   }, [user?.phone]);
 
-  // 3. Обновление данных юзера (Убрана цикличная зависимость)
   const refreshUserData = useCallback(async () => {
     if (!user?.phone) return;
     const cleanPhone = user.phone.replace(/\D/g, '');
@@ -170,7 +123,7 @@ export const useGoldenApp = () => {
       .maybeSingle();
 
     if (error || !data) {
-      if (!data && !error) { // Если записи нет — разлогиниваем
+      if (!data && !error) { 
         setUser(null);
         localStorage.removeItem(KEYS.SESSION);
       }
@@ -192,12 +145,11 @@ export const useGoldenApp = () => {
       tg_user_id: data.tg_user_id 
     };
 
-    // Сравниваем только через JSON чтобы не частить с обновлениями стейта
     if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
       setUser(updatedUser);
       localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
     }
-  }, [user?.phone]); // ЗАВИСИМОСТЬ ТОЛЬКО ОТ ТЕЛЕФОНА
+  }, [user?.phone]); 
 
   const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
@@ -214,7 +166,8 @@ export const useGoldenApp = () => {
     const cleanPhone = userData?.phone?.replace(/\D/g, '');
     const tgId = userData?.tg_user_id;
     const clientMention = tgId ? `<a href="tg://user?id=${tgId}">${userData?.full_name}</a>` : `<b>${userData?.full_name}</b>`;
-    const message = `💰 <b>КЛИЕНТ ОПЛАТИЛ НОМЕР</b>\n━━━━━━━━━━━━━━━━━━\n👤 ${clientMention}\n📱 +${cleanPhone}\n💎 Лот: <code>${phoneData.number}</code>\n💵 ${phoneData.price.toLocaleString()} ₸\n\n⚠️ <i>Проверьте Kaspi! Если деньги пришли, нажмите Подтвердить. Номер заблокирован на 30 минут.</i>`;
+    // 🌟 УБРАЛИ УПОМИНАНИЕ КАСПИ И БЛОКИРОВКИ 🌟
+    const message = `🚀 <b>НОВЫЙ ЛИД (WHATSAPP)</b>\n━━━━━━━━━━━━━━━━━━\n👤 ${clientMention}\n📱 +${cleanPhone}\n💎 Лот: <code>${phoneData.number}</code>\n💵 ${phoneData.price.toLocaleString()} ₸\n\n⚠️ <i>Клиент нажал кнопку покупки и переходит в WhatsApp для сделки.</i>`;
     
     const keyboard = { inline_keyboard: [
       [{ text: "✅ ПОДТВЕРДИТЬ ПРОДАЖУ", callback_data: `confirm_sale:${phoneData.id}` }],
@@ -264,7 +217,6 @@ export const useGoldenApp = () => {
     else localStorage.removeItem(KEYS.SESSION);
   }, [user]);
 
-  // 🌟 ГЛОБАЛЬНАЯ СИНХРОНИЗАЦИЯ ТЕМЫ С ЯДРОМ БРАУЗЕРА 🌟
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
@@ -281,10 +233,9 @@ export const useGoldenApp = () => {
   }, [isLight]);
 
   const filteredPhones = useMemo(() => {
-    const now = Date.now();
     return phones.filter(p => {
       if (p.status === 'SOLD' && p.sold_at) {
-        if (now - new Date(p.sold_at).getTime() > 60000) return false;
+        if (Date.now() - new Date(p.sold_at).getTime() > 60000) return false;
       }
       const mSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
       const mLabel = activeLabelFilter ? (p.label_ids || []).includes(activeLabelFilter) : true;
@@ -296,7 +247,7 @@ export const useGoldenApp = () => {
     isLoading, view, setView, user, setUser, phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones, selectedPhone, setSelectedPhone,
     userOrders, fetchUserOrders, fetchData, refreshUserData, handleSavePhone, handleDeletePhone, 
-    sendPaymentNotification, sendPurchaseNotification, tryLockPhone, extendLockToPayment, createOrder,
+    sendPaymentNotification, sendPurchaseNotification, tryLockPhone, createOrder,
     pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc,
     isLight, toggleTheme
   };
