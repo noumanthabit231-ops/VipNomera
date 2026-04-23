@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { 
   Search, SlidersHorizontal, Crown, PackageSearch, 
-  Lock, Zap, TrendingUp, FileText, Sun, Moon
+  Zap, TrendingUp, FileText, Sun, Moon
 } from 'lucide-react';
 import { cn } from '../cn';
 
@@ -21,12 +21,6 @@ export const CatalogView = ({
       new: phones?.filter((p: any) => p.status === 'IN_STOCK').length || 0,
     };
   }, [phones]);
-
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 10000); 
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <div className="pt-6 space-y-5 pb-24 animate-in fade-in duration-700">
@@ -127,24 +121,7 @@ export const CatalogView = ({
       ) : (
         <div className="grid grid-cols-3 gap-2 px-2 sm:gap-3 sm:px-4">
           {filteredPhones.map((phone: any, index: number) => {
-            
-            const cleanUserPhone = user?.phone?.replace(/\D/g, '');
-            const isLockedByMe = phone.locked_by === cleanUserPhone;
             const isSold = phone.status === 'SOLD';
-
-            const lockedAtTime = phone.locked_at ? new Date(phone.locked_at).getTime() : 0;
-            const confirmedAtTime = phone.user_confirmed_at ? new Date(phone.user_confirmed_at).getTime() : 0;
-
-            const viewTimeLeft = 5 * 60000 - (now - lockedAtTime);
-            const payTimeLeft = 30 * 60000 - (now - confirmedAtTime);
-
-            const isViewLocked = phone.status === 'PENDING' && !phone.user_confirmed_at && viewTimeLeft > 0;
-            const isPayLocked = phone.status === 'PENDING' && phone.user_confirmed_at && payTimeLeft > 0;
-            const isActuallyLocked = isViewLocked || isPayLocked;
-
-            let remainingMinutes = 0;
-            if (isViewLocked) remainingMinutes = Math.ceil(viewTimeLeft / 60000);
-            if (isPayLocked) remainingMinutes = Math.ceil(payTimeLeft / 60000);
 
             return (
               <div 
@@ -153,7 +130,7 @@ export const CatalogView = ({
                 className={cn(
                   "relative aspect-[3/4] border rounded-xl overflow-hidden group transition-all animate-in fade-in slide-in-from-bottom-2",
                   isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5",
-                  (isSold || (isActuallyLocked && !isLockedByMe)) ? "opacity-60 grayscale-[30%]" : ""
+                  isSold ? "opacity-60 grayscale-[30%]" : ""
                 )}
               >
                 <div className={cn("absolute inset-0 bg-gradient-to-b transition-colors", isLight ? "from-transparent to-gray-50 group-hover:from-gray-50" : "from-[#111] to-black group-hover:from-[#161616]")} />
@@ -164,19 +141,8 @@ export const CatalogView = ({
                    </div>
                 )}
 
-                {isActuallyLocked && !isSold && (
-                   <div className="absolute top-7 left-0 right-0 z-20 flex justify-center pointer-events-none">
-                     <span className={cn(
-                       "text-[6px] font-bold px-2 py-0.5 rounded-full shadow-lg text-center tracking-wide", 
-                       isPayLocked ? "bg-orange-500 text-white" : "bg-[#D4AF37] text-black animate-pulse"
-                     )}>
-                       {isPayLocked ? "ОФОРМЛЯЮТ" : "СМОТРЯТ"}
-                     </span>
-                   </div>
-                )}
-
                 <div className="absolute top-0 left-0 right-0 h-1 z-20">
-                   <div className={cn("h-full w-full transition-colors", isSold ? "bg-red-500" : isActuallyLocked ? "bg-orange-500" : "bg-[#D4AF37]")} />
+                   <div className={cn("h-full w-full transition-colors", isSold ? "bg-red-500" : "bg-[#D4AF37]")} />
                 </div>
 
                 <div className="absolute top-2 left-0 right-0 px-1.5 flex justify-between items-start z-30">
@@ -186,7 +152,6 @@ export const CatalogView = ({
                        return label && <div key={id} className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_rgba(212,175,55,0.5)]" style={{ backgroundColor: label.color }} />;
                      })}
                   </div>
-                  {isActuallyLocked && !isLockedByMe && <Lock size={8} className="text-orange-500/50" />}
                 </div>
 
                 <div className="relative z-10 h-full flex flex-col p-2 pt-4">
@@ -197,9 +162,8 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                    {/* Вставь свои классы шрифта из кабинета вместо "font-sans font-medium" */}
                     <h3 className={cn(
-                      "text-[11px] sm:text-[12px] font-sans font-medium whitespace-nowrap transition-colors", 
+                      "text-[10px] sm:text-[11px] font-bold whitespace-nowrap transition-colors", 
                       isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
                     )}>
                       {phone.number}
@@ -213,21 +177,20 @@ export const CatalogView = ({
                   </div>
 
                   <button 
-                    disabled={isSold || (isActuallyLocked && !isLockedByMe)}
+                    disabled={isSold}
                     onClick={() => {
-                      if (!isActuallyLocked || isLockedByMe) {
+                      if (!isSold) {
                          isVIP ? setSelectedPhone(phone) : setView('profile');
                       }
                     }}
                     className={cn(
                       "mt-2 w-full py-1.5 rounded-lg text-[8px] font-bold tracking-wide transition-all z-40 relative",
                       isSold ? "bg-red-500/10 text-red-500 border border-red-500/20" : 
-                      (isActuallyLocked && !isLockedByMe) ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" : 
                       isVIP ? "bg-[#D4AF37] text-black shadow-[0_0_10px_rgba(212,175,55,0.2)]" : 
                       (isLight ? "bg-gray-100 text-gray-500 border border-gray-200" : "bg-[#151515] text-gray-500 border border-white/5")
                     )}
                   >
-                    {isSold ? 'Продано' : (isActuallyLocked && !isLockedByMe) ? `Ждите ${remainingMinutes} мин` : isVIP ? 'Купить' : 'VIP'}
+                    {isSold ? 'Продано' : isVIP ? 'Купить' : 'VIP'}
                   </button>
                 </div>
               </div>
