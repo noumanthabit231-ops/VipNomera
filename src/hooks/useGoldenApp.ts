@@ -12,7 +12,13 @@ const KEYS = {
 export const useGoldenApp = () => {
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'my_orders'>('catalog');
   
-  const [isLight, setIsLight] = useState(() => localStorage.getItem(KEYS.THEME) === 'light');
+  // Исправленная логика инициализации темы
+  const [isLight, setIsLight] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(KEYS.THEME) === 'light';
+    }
+    return false;
+  });
   
   const toggleTheme = () => {
     setIsLight(prev => {
@@ -23,32 +29,24 @@ export const useGoldenApp = () => {
   };
 
   const [user, setUser] = useState<UserProfile | null>(() => {
-    const data = localStorage.getItem(KEYS.SESSION);
+    const data = typeof window !== 'undefined' ? localStorage.getItem(KEYS.SESSION) : null;
     return data ? JSON.parse(data) : null;
   });
 
-  const [phones, setPhones] = useState<Phone[]>(() => {
-    const cached = localStorage.getItem(KEYS.PHONES_CACHE);
-    return cached ? JSON.parse(cached) : [];
-  });
-
-  const [labels, setLabels] = useState<Label[]>(() => {
-    const cached = localStorage.getItem(KEYS.LABELS_CACHE);
-    return cached ? JSON.parse(cached) : [];
-  });
-
+  const [phones, setPhones] = useState<Phone[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
   const [userOrders, setUserOrders] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(phones.length === 0);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
 
+  // Состояния для админки
   const [pn, setPn] = useState('');
   const [pr, setPr] = useState('');
   const [st, setSt] = useState<'IN_STOCK' | 'ON_ORDER'>('IN_STOCK');
   const [sl, setSl] = useState<string[]>([]);
 
-  // Прямая проверка доступности номера
   const tryLockPhone = async (phoneId: string) => {
     const phone = phones.find(p => p.id === phoneId);
     if (!phone || phone.status === 'SOLD') return false;
@@ -72,23 +70,16 @@ export const useGoldenApp = () => {
   };
 
   const fetchData = useCallback(async () => {
-    if (phones.length === 0) setIsLoading(true);
     try {
       const [pRes, lRes] = await Promise.all([
         supabase.from('phones').select('*').order('created_at', { ascending: false }).limit(200),
         supabase.from('labels').select('*').order('created_at', { ascending: true }) 
       ]);
       
-      if (pRes.data) {
-        setPhones(pRes.data);
-        localStorage.setItem(KEYS.PHONES_CACHE, JSON.stringify(pRes.data));
-      }
-      if (lRes.data) {
-        setLabels(lRes.data);
-        localStorage.setItem(KEYS.LABELS_CACHE, JSON.stringify(lRes.data));
-      }
+      if (pRes.data) setPhones(pRes.data);
+      if (lRes.data) setLabels(lRes.data);
     } catch (e) {
-      console.error("Ошибка загрузки:", e);
+      console.error("Data fetch error:", e);
     } finally {
       setIsLoading(false);
     }
@@ -107,94 +98,38 @@ export const useGoldenApp = () => {
   const refreshUserData = useCallback(async () => {
     if (!user?.phone) return;
     const cleanPhone = user.phone.replace(/\D/g, '');
-
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('auth_codes')
       .select('role, subscription, expiry_date, name, tg_user_id')
       .eq('phone', cleanPhone)
       .eq('is_verified', true)
-      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (error || !data) {
-      if (!data && !error) { 
-        setUser(null);
-        localStorage.removeItem(KEYS.SESSION);
+    if (data) {
+      let currentSub = data.subscription || 'INACTIVE';
+      if (data.role === 'ADMIN') currentSub = 'ACTIVE';
+      const updatedUser = { ...user, full_name: data.name, role: data.role || 'USER', subscription: currentSub };
+      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
+        setUser(updatedUser);
       }
-      return;
     }
-
-    let currentSub = data.subscription || 'INACTIVE';
-    if (data.role === 'ADMIN') currentSub = 'ACTIVE';
-    else if (currentSub === 'ACTIVE' && data.expiry_date && new Date(data.expiry_date) < new Date()) {
-      currentSub = 'INACTIVE';
-    }
-
-    const updatedUser = { 
-      ...user, 
-      full_name: data.name, 
-      role: data.role || 'USER', 
-      subscription: currentSub, 
-      expiry_date: data.expiry_date, 
-      tg_user_id: data.tg_user_id 
-    };
-
-    if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
-      setUser(updatedUser);
-      localStorage.setItem(KEYS.SESSION, JSON.stringify(updatedUser));
-    }
-  }, [user?.phone]); 
-
-  const handleSavePhone = async () => {
-    if (!pn || !pr) return alert('Заполните данные');
-    const { error } = await supabase.from('phones').insert([{ number: pn, price: Number(pr), status: st, label_ids: sl }]);
-    if (!error) { setPn(''); setPr(''); setSl([]); fetchData(); return true; }
-    return false;
-  };
-
-  const handleDeletePhone = async (id: string) => {
-    if (confirm('Удалить?')) {
-      await supabase.from('phones').delete().eq('id', id);
-      fetchData();
-    }
-  };
+  }, [user?.phone]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { if (user) fetchUserOrders(); }, [user, fetchUserOrders]);
-
+  
   useEffect(() => {
-    const channel = supabase.channel('public_phones')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'phones' }, (payload) => {
-        setPhones(current => current.map(p => p.id === payload.new.id ? payload.new : p));
-      }).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
-  useEffect(() => {
-    if (!user?.phone || view === 'auth') return;
-    refreshUserData();
-    const interval = setInterval(refreshUserData, 15000);
-    return () => clearInterval(interval);
-  }, [user?.phone, view, refreshUserData]);
-
-  useEffect(() => {
-    if (user) localStorage.setItem(KEYS.SESSION, JSON.stringify(user));
-    else localStorage.removeItem(KEYS.SESSION);
-  }, [user]);
+    if (user) {
+      fetchUserOrders();
+      localStorage.setItem(KEYS.SESSION, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(KEYS.SESSION);
+    }
+  }, [user, fetchUserOrders]);
 
   useEffect(() => {
     const root = document.documentElement;
-    const body = document.body;
-    if (isLight) {
-      root.style.backgroundColor = '#F4F4F6';
-      body.style.backgroundColor = '#F4F4F6';
-      body.style.color = '#000000';
-    } else {
-      root.style.backgroundColor = '#050505';
-      body.style.backgroundColor = '#050505';
-      body.style.color = '#ffffff';
-    }
+    root.style.backgroundColor = isLight ? '#F4F4F6' : '#050505';
   }, [isLight]);
 
   const filteredPhones = useMemo(() => {
@@ -211,8 +146,8 @@ export const useGoldenApp = () => {
   return {
     isLoading, view, setView, user, setUser, phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones, selectedPhone, setSelectedPhone,
-    userOrders, fetchUserOrders, fetchData, refreshUserData, handleSavePhone, handleDeletePhone, 
-    tryLockPhone, createOrder, pn, setPn, pr, setPr, st, setSt, sl, setSl, 
+    userOrders, fetchData, refreshUserData, createOrder, tryLockPhone,
+    pn, setPn, pr, setPr, st, setSt, sl, setSl,
     isLight, toggleTheme
   };
 };
