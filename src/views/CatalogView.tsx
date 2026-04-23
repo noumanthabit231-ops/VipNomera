@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { 
   Search, SlidersHorizontal, Crown, PackageSearch, 
-  Zap, TrendingUp, FileText, Sun, Moon
+  TrendingUp, FileText, Sun, Moon
 } from 'lucide-react';
 import { cn } from '../cn';
 
@@ -17,8 +17,7 @@ export const CatalogView = ({
 
   const stats = useMemo(() => {
     return {
-      total: phones?.length || 0,
-      new: phones?.filter((p: any) => p.status === 'IN_STOCK').length || 0,
+      total: phones?.length || 0
     };
   }, [phones]);
 
@@ -61,22 +60,11 @@ export const CatalogView = ({
         </div>
       </div>
 
-      {/* ИНФО-БАР */}
-      <div className="grid grid-cols-3 gap-2 px-4">
-        <div className={cn("border rounded-xl p-2 flex flex-col items-center justify-center", isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5")}>
-          <span className="text-[9px] font-medium text-gray-500 tracking-wide">Всего</span>
-          <span className={cn("text-sm font-bold", isLight ? "text-black" : "text-white")}>{stats.total}</span>
-        </div>
-        <div className={cn("border rounded-xl p-2 flex flex-col items-center justify-center", isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5")}>
-          <span className="text-[9px] font-medium text-[#D4AF37] flex items-center gap-1 tracking-wide"><Zap size={8} /> Свободно</span>
-          <span className={cn("text-sm font-bold", isLight ? "text-black" : "text-white")}>{stats.new}</span>
-        </div>
-        <div className={cn("border rounded-xl p-2 flex flex-col items-center justify-center", isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5")}>
-          <span className="text-[9px] font-medium text-gray-500 tracking-wide">Статус</span>
-          <div className="flex items-center gap-1">
-            <div className="w-1.5 h-1.5 bg-green-500 rounded-full shadow-[0_0_5px_green]" />
-            <span className={cn("text-[10px] font-bold tracking-wide uppercase", isLight ? "text-black" : "text-white")}>Online</span>
-          </div>
+      {/* ИНФО-БАР (ТОЛЬКО ВСЕГО) */}
+      <div className="px-4">
+        <div className={cn("w-full border rounded-xl p-3 flex items-center justify-between px-6", isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5")}>
+          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Всего номеров в базе</span>
+          <span className={cn("text-lg font-bold", isLight ? "text-black" : "text-white")}>{stats.total}</span>
         </div>
       </div>
 
