@@ -47,17 +47,12 @@ export const useGoldenApp = () => {
   const [pr, setPr] = useState('');
   const [st, setSt] = useState<'IN_STOCK' | 'ON_ORDER'>('IN_STOCK');
   const [sl, setSl] = useState<string[]>([]);
-  const [lt, setLt] = useState('');
-  const [lc, setLc] = useState('#D4AF37');
 
-  const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN || "8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss";
-  const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID || "7620660514";
-
-  // 🌟 УПРОЩЕННАЯ ПРОВЕРКА (БЕЗ ТАЙМЕРОВ) 🌟
+  // Прямая проверка доступности номера
   const tryLockPhone = async (phoneId: string) => {
     const phone = phones.find(p => p.id === phoneId);
     if (!phone || phone.status === 'SOLD') return false;
-    return true; // Просто разрешаем открыть шторку, если не продано
+    return true; 
   };
 
   const createOrder = async (phoneData: any, type: 'PURCHASE' | 'ORDER') => {
@@ -151,35 +146,6 @@ export const useGoldenApp = () => {
     }
   }, [user?.phone]); 
 
-  const sendPaymentNotification = async (userData: any, detail: string = "Подписка VIP (30 дней)") => {
-    const cleanPhone = userData?.phone?.replace(/\D/g, '');
-    const tgId = userData?.tg_user_id; 
-    const message = `🔔 <b>ОПЛАТА ПОДПИСКИ</b>\n👤 ${userData?.full_name}\n📱 +${cleanPhone}\n📦 ${detail}`;
-    const keyboard = { inline_keyboard: [[{ text: "✅ Подтвердить оплату", callback_data: `approve_pay:${cleanPhone}` }], [{ text: "🔵 Написать", url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}` }]] };
-    try {
-      await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TG_CHAT_ID, text: message, parse_mode: 'HTML', reply_markup: keyboard }) });
-      return true;
-    } catch { return false; }
-  };
-
-  const sendPurchaseNotification = async (userData: any, phoneData: any) => {
-    const cleanPhone = userData?.phone?.replace(/\D/g, '');
-    const tgId = userData?.tg_user_id;
-    const clientMention = tgId ? `<a href="tg://user?id=${tgId}">${userData?.full_name}</a>` : `<b>${userData?.full_name}</b>`;
-    // 🌟 УБРАЛИ УПОМИНАНИЕ КАСПИ И БЛОКИРОВКИ 🌟
-    const message = `🚀 <b>НОВЫЙ ЛИД (WHATSAPP)</b>\n━━━━━━━━━━━━━━━━━━\n👤 ${clientMention}\n📱 +${cleanPhone}\n💎 Лот: <code>${phoneData.number}</code>\n💵 ${phoneData.price.toLocaleString()} ₸\n\n⚠️ <i>Клиент нажал кнопку покупки и переходит в WhatsApp для сделки.</i>`;
-    
-    const keyboard = { inline_keyboard: [
-      [{ text: "✅ ПОДТВЕРДИТЬ ПРОДАЖУ", callback_data: `confirm_sale:${phoneData.id}` }],
-      [{ text: "🔵 Написать клиенту", url: tgId ? `tg://user?id=${tgId}` : `https://t.me/+${cleanPhone}` }]
-    ]};
-
-    try {
-      await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: TG_CHAT_ID, text: message, parse_mode: 'HTML', reply_markup: keyboard }) });
-      return true;
-    } catch { return false; }
-  };
-
   const handleSavePhone = async () => {
     if (!pn || !pr) return alert('Заполните данные');
     const { error } = await supabase.from('phones').insert([{ number: pn, price: Number(pr), status: st, label_ids: sl }]);
@@ -220,7 +186,6 @@ export const useGoldenApp = () => {
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
-    
     if (isLight) {
       root.style.backgroundColor = '#F4F4F6';
       body.style.backgroundColor = '#F4F4F6';
@@ -247,8 +212,7 @@ export const useGoldenApp = () => {
     isLoading, view, setView, user, setUser, phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones, selectedPhone, setSelectedPhone,
     userOrders, fetchUserOrders, fetchData, refreshUserData, handleSavePhone, handleDeletePhone, 
-    sendPaymentNotification, sendPurchaseNotification, tryLockPhone, createOrder,
-    pn, setPn, pr, setPr, st, setSt, sl, setSl, lt, setLt, lc, setLc,
+    tryLockPhone, createOrder, pn, setPn, pr, setPr, st, setSt, sl, setSl, 
     isLight, toggleTheme
   };
 };
