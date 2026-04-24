@@ -161,9 +161,9 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                    {/* Шрифт номера как у цены: обычный, без курсива, без моноширинности */}
+                    {/* ИСПРАВЛЕНО: добавлен font-sans для ровных цифр */}
                     <h3 className={cn(
-                      "text-[14px] sm:text-[15px] font-bold transition-colors", 
+                      "text-[14px] sm:text-[15px] font-bold font-sans transition-colors", 
                       isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
                     )}>
                       {phone.number}
