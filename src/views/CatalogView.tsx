@@ -21,12 +21,11 @@ export const CatalogView = ({
     };
   }, [phones]);
 
-  // Обработчик клика по коронке
   const handleCrownClick = () => {
     if (user) {
-      setView('subscription'); // если авторизован → на подписку
+      setView('subscription');
     } else {
-      setView('auth'); // если нет → на авторизацию
+      setView('auth');
     }
   };
 
@@ -61,7 +60,6 @@ export const CatalogView = ({
             </button>
           )}
 
-          {/* Измененная коронка: ведет на auth или subscription */}
           <button 
             onClick={handleCrownClick}
             className="group relative w-12 h-12 flex items-center justify-center transition-transform active:scale-90"
@@ -73,7 +71,7 @@ export const CatalogView = ({
         </div>
       </div>
 
-      {/* ИНФО-БАР (ТОЛЬКО ВСЕГО) */}
+      {/* ИНФО-БАР */}
       <div className="px-4">
         <div className={cn("w-full border rounded-xl p-3 flex items-center justify-between px-6", isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5")}>
           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Всего номеров в базе</span>
@@ -163,7 +161,7 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                    {/* ИЗМЕНЕНО: обычный шрифт, без моно, без наклона */}
+                    {/* Шрифт номера как у цены: обычный, без курсива, без моноширинности */}
                     <h3 className={cn(
                       "text-[14px] sm:text-[15px] font-bold transition-colors", 
                       isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
