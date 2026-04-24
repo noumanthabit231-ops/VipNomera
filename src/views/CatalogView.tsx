@@ -21,6 +21,15 @@ export const CatalogView = ({
     };
   }, [phones]);
 
+  // Обработчик клика по коронке
+  const handleCrownClick = () => {
+    if (user) {
+      setView('subscription'); // если авторизован → на подписку
+    } else {
+      setView('auth'); // если нет → на авторизацию
+    }
+  };
+
   return (
     <div className="pt-6 space-y-5 pb-24 animate-in fade-in duration-700">
       
@@ -52,7 +61,11 @@ export const CatalogView = ({
             </button>
           )}
 
-          <button onClick={() => setView('profile')} className="group relative w-12 h-12 flex items-center justify-center transition-transform active:scale-90">
+          {/* Измененная коронка: ведет на auth или subscription */}
+          <button 
+            onClick={handleCrownClick}
+            className="group relative w-12 h-12 flex items-center justify-center transition-transform active:scale-90"
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-[#D4AF37] to-[#8C7323] rounded-2xl rotate-3 group-hover:rotate-6 transition-transform shadow-[0_0_20px_rgba(212,175,55,0.2)]" />
             <div className="absolute inset-0.5 bg-[#050505] rounded-[14px] z-10" />
             <Crown className="text-[#D4AF37] relative z-20 group-hover:scale-110 transition-transform" size={22} />
@@ -150,9 +163,9 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                    {/* ИЗМЕНЕНО: убран italic, оставлен только font-bold */}
+                    {/* ИЗМЕНЕНО: обычный шрифт, без моно, без наклона */}
                     <h3 className={cn(
-                      "text-[14px] sm:text-[16px] font-bold whitespace-nowrap transition-colors", 
+                      "text-[14px] sm:text-[15px] font-bold transition-colors", 
                       isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
                     )}>
                       {phone.number}
