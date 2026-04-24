@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { 
   Search, SlidersHorizontal, Crown, PackageSearch, 
-  TrendingUp, FileText, Sun, Moon
+  TrendingUp, FileText, Sun, Moon, Lock
 } from 'lucide-react';
 import { cn } from '../cn';
 
