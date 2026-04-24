@@ -10,7 +10,6 @@ interface BottomSheetProps {
 }
 
 export const BottomSheet: React.FC<BottomSheetProps> = ({ isOpen, onClose, title, children }) => {
-  // Блокируем скролл на фоне при открытой шторке
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = 'auto';
@@ -21,21 +20,17 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({ isOpen, onClose, title
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
-      {/* Затемнение фона (бэкдроп) с эффектом размытия */}
       <div 
         className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity animate-in fade-in duration-300"
         onClick={onClose}
       />
       
-      {/* Сама шторка (Темная с золотой рамкой сверху) */}
       <div className="relative w-full max-w-xl mx-auto bg-[#0A0A0A] border-t border-[#D4AF37]/30 rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-full duration-300 ease-out">
         
-        {/* Маленький "язычок" (pull bar) сверху */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-gray-800 rounded-full" />
 
         <div className="px-6 pt-8 pb-10 max-h-[90vh] overflow-y-auto hide-scrollbar">
           
-          {/* Шапка шторки */}
           <div className="flex items-center justify-between mb-6">
             {title && (
               <h2 className="text-xl font-black uppercase italic tracking-tighter text-white">
@@ -50,7 +45,6 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({ isOpen, onClose, title
             </button>
           </div>
 
-          {/* Контент модалки */}
           <div>
             {children}
           </div>
