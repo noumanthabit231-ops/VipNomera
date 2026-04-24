@@ -150,15 +150,16 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
+                    {/* ИЗМЕНЕНО: убран italic, оставлен только font-bold */}
                     <h3 className={cn(
-                      "text-[10px] sm:text-[11px] font-bold whitespace-nowrap transition-colors", 
+                      "text-[14px] sm:text-[16px] font-bold whitespace-nowrap transition-colors", 
                       isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
                     )}>
                       {phone.number}
                     </h3>
                     
                     <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[9px] font-bold text-[#D4AF37]">
+                      <span className="text-[11px] font-bold text-[#D4AF37]">
                         {phone.price.toLocaleString()} ₸
                       </span>
                     </div>
@@ -172,7 +173,7 @@ export const CatalogView = ({
                       }
                     }}
                     className={cn(
-                      "mt-2 w-full py-1.5 rounded-lg text-[8px] font-bold tracking-wide transition-all z-40 relative",
+                      "mt-2 w-full py-1.5 rounded-lg text-[9px] font-bold tracking-wide transition-all z-40 relative",
                       isSold ? "bg-red-500/10 text-red-500 border border-red-500/20" : 
                       isVIP ? "bg-[#D4AF37] text-black shadow-[0_0_10px_rgba(212,175,55,0.2)]" : 
                       (isLight ? "bg-gray-100 text-gray-500 border border-gray-200" : "bg-[#151515] text-gray-500 border border-white/5")
