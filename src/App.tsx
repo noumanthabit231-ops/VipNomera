@@ -11,10 +11,10 @@ import { AdminView } from './views/AdminView';
 import { AuthView } from './views/AuthView';
 import { ProfileView } from './views/ProfileView';
 import { SubscriptionView } from './views/SubscriptionView';
+import { OrderNumberView } from './views/OrderNumberView';
 import { BottomSheet } from './components/ui/BottomSheet';
 import { Button } from './components/ui/Button';
 import { cn } from './cn';
-import { OrderNumberView } from './views/OrderNumberView';
 
 export default function App() {
   const { 
@@ -38,7 +38,6 @@ export default function App() {
     return isActive && isNotExpired;
   }, [user]);
 
-  // Упрощенный выбор номера без блокировок
   const handleSelectPhoneWrapper = async (phone: any) => {
     if (phone.status === 'SOLD') {
       showToast("Лот недоступен", "Этот номер уже продан.");
@@ -47,20 +46,15 @@ export default function App() {
     setSelectedPhone(phone);
   };
 
-  // 🌟 ЛОГИКА WHATSAPP (ПРЯМАЯ СВЯЗЬ) 🌟
   const handleWhatsAppOrder = async () => {
     if (isOrderSending || !selectedPhone) return;
     setIsOrderSending(true);
     
     try {
-      // Создаем запись в базе для истории (вкладка "Заявки" у админа)
       await createOrder(selectedPhone, 'PURCHASE');
-      
       const message = `Здравствуйте! Хочу приобрести номер: ${selectedPhone.number}`;
       const whatsappUrl = `https://wa.me/77077977767?text=${encodeURIComponent(message)}`;
-      
       window.open(whatsappUrl, '_blank');
-
       showToast("Заявка создана", "Переходим в WhatsApp...", "success");
       setSelectedPhone(null);
     } catch (error) {
