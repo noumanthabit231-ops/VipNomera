@@ -161,20 +161,20 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                    {/* ИСПРАВЛЕНО: добавлен font-sans для ровных цифр */}
-                    <h3 className={cn(
-                      "text-[14px] sm:text-[15px] font-bold font-sans transition-colors", 
-                      isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
-                    )}>
-                      {phone.number}
-                    </h3>
-                    
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[11px] font-bold text-[#D4AF37]">
-                        {phone.price.toLocaleString()} ₸
-                      </span>
-                    </div>
+                  {/* Уменьшаем шрифт и запрещаем перенос строки */}
+                  <h3 className={cn(
+                    "text-[10px] sm:text-[11px] font-bold font-sans whitespace-nowrap transition-colors overflow-x-auto hide-scrollbar", 
+                    isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
+                  )}>
+                    {phone.number}
+                  </h3>
+                  
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[10px] font-bold text-[#D4AF37] whitespace-nowrap">
+                      {phone.price.toLocaleString()} ₸
+                    </span>
                   </div>
+                </div>
 
                   <button 
                     disabled={isSold}
