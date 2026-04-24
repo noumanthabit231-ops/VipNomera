@@ -106,7 +106,7 @@ export const CatalogView = ({
         </button>
       </div>
 
-      {/* СЕТКА НОМЕРОВ - 2 КОЛОНКИ */}
+      {/* СЕТКА НОМЕРОВ */}
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-32 space-y-4">
           <div className="relative"><div className="w-14 h-14 border-2 border-[#D4AF37]/10 border-t-[#D4AF37] rounded-full animate-spin" /><Crown className="absolute inset-0 m-auto text-[#D4AF37] opacity-20" size={20} /></div>
@@ -118,7 +118,7 @@ export const CatalogView = ({
           <p className="text-gray-500 font-bold tracking-wide text-xs">Совпадений не найдено</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2 px-2 sm:gap-3 sm:px-4">
+        <div className="grid grid-cols-3 gap-2 px-2 sm:gap-3 sm:px-4">
           {filteredPhones.map((phone: any, index: number) => {
             const isSold = phone.status === 'SOLD';
 
@@ -161,19 +161,20 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                    {/* Увеличенный шрифт номера, без переноса строки */}
-                    <h3 className={cn(
-                      "text-[13px] sm:text-[15px] font-bold font-sans whitespace-nowrap transition-colors overflow-x-auto hide-scrollbar", 
-                      isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
-                    )}>
-                      {phone.number}
-                    </h3>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[11px] sm:text-[12px] font-bold text-[#D4AF37] whitespace-nowrap">
-                        {phone.price.toLocaleString()} ₸
-                      </span>
-                    </div>
-                  </div>
+                {/* Уменьшаем шрифт и запрещаем перенос строки */}
+                <h3 className={cn(
+                  "text-[10px] sm:text-[11px] font-bold font-sans whitespace-nowrap transition-colors overflow-x-auto hide-scrollbar", 
+                  isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
+                )}>
+                  {phone.number}
+                </h3>
+                
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-[10px] font-bold text-[#D4AF37] whitespace-nowrap">
+                    {phone.price.toLocaleString()} ₸
+                  </span>
+                </div>
+              </div>
 
                   <button 
                     disabled={isSold}
