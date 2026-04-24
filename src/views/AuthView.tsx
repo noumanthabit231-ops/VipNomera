@@ -3,25 +3,32 @@ import { MessageSquare, ExternalLink, Smartphone, ArrowLeft, RefreshCcw, Loader2
 import { supabase } from '../supabase';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { useGoldenApp } from '../hooks/useGoldenApp';
 
 const BOT_USERNAME = "vipvipnumbers_bot";
 
 export const AuthView = () => {
+  const { setUser, setView } = useGoldenApp();
   const [mode, setMode] = useState<'register' | 'restore'>('register');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
-  const [code, setCode] = useState(''); // Код остается под капотом как токен сессии
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Генерируем уникальный токен сессии (раньше это был видимый код)
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleStartAuth = async () => {
     const cleanPhone = phone.replace(/\D/g, '');
     
-    if (mode === 'register' && !name.trim()) return alert("Пожалуйста, введите ваше имя");
-    if (cleanPhone.length < 10) return alert("Введите корректный номер телефона (например, 7702...)");
+    if (mode === 'register' && !name.trim()) {
+      alert("Пожалуйста, введите ваше имя");
+      return;
+    }
+    if (cleanPhone.length < 10) {
+      alert("Введите корректный номер телефона (например, 7702...)");
+      return;
+    }
     
     setLoading(true);
     const sessionToken = generateSessionToken();
@@ -54,7 +61,7 @@ export const AuthView = () => {
         .from('auth_codes')
         .select('is_verified, name, role, subscription, expiry_date, tg_user_id')
         .eq('phone', cleanPhone)
-        .eq('code', code) // Ищем по нашему скрытому токену
+        .eq('code', code)
         .single();
 
       if (data?.is_verified) {
@@ -67,32 +74,31 @@ export const AuthView = () => {
           subscription: data.subscription || 'INACTIVE',
           expiry_date: data.expiry_date,
           tg_user_id: data.tg_user_id,
-          id: `user_${Date.now()}`
         };
 
-        localStorage.setItem('golden_v2_session', JSON.stringify(userData));
-        window.location.reload(); 
+        setUser(userData);
+        setView('catalog');
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [step, phone, code, name, mode]);
+  }, [step, phone, code, name, mode, setUser, setView]);
 
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
       {step === 'phone' ? (
-        <Card className="p-10 shadow-2xl relative overflow-hidden bg-white border-none">
+        <Card className="p-10 shadow-2xl relative overflow-hidden bg-white border-none dark:bg-[#0F0F0F] dark:border-white/5">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#D4AF37]/30" />
           
-          <div className="w-16 h-16 bg-gray-50 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-gray-100 shadow-inner">
+          <div className="w-16 h-16 bg-gray-50 dark:bg-[#1A1A1A] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-gray-100 dark:border-gray-800 shadow-inner">
             {mode === 'register' ? (
-              <Smartphone className="text-gray-900" size={28} />
+              <Smartphone className="text-gray-900 dark:text-white" size={28} />
             ) : (
               <RefreshCcw className="text-[#D4AF37]" size={28} />
             )}
           </div>
           
-          <h2 className="text-3xl font-black text-gray-900 mb-2 uppercase italic tracking-tighter">
+          <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 uppercase italic tracking-tighter">
             {mode === 'register' ? 'Аккаунт' : 'Вход'}
           </h2>
           <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-10">
@@ -104,7 +110,7 @@ export const AuthView = () => {
               <input 
                 type="text" 
                 placeholder="Ваше имя" 
-                className="w-full bg-gray-50 border-2 border-transparent rounded-2xl p-5 text-gray-900 font-bold text-center outline-none focus:border-[#D4AF37]/20 focus:bg-white transition-all text-lg"
+                className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-2 border-transparent rounded-2xl p-5 text-gray-900 dark:text-white font-bold text-center outline-none focus:border-[#D4AF37]/20 focus:bg-white dark:focus:bg-[#0F0F0F] transition-all text-lg"
                 value={name} 
                 onChange={(e) => setName(e.target.value)}
               />
@@ -113,7 +119,7 @@ export const AuthView = () => {
             <input 
               type="tel" 
               placeholder="+7 (7xx) xxx-xx-xx" 
-              className="w-full bg-gray-50 border-2 border-transparent rounded-2xl p-5 text-gray-900 font-bold text-center outline-none focus:border-[#D4AF37]/20 focus:bg-white transition-all text-lg"
+              className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-2 border-transparent rounded-2xl p-5 text-gray-900 dark:text-white font-bold text-center outline-none focus:border-[#D4AF37]/20 focus:bg-white dark:focus:bg-[#0F0F0F] transition-all text-lg"
               value={phone} 
               onChange={(e) => setPhone(e.target.value)}
             />
@@ -142,23 +148,22 @@ export const AuthView = () => {
         </Card>
       ) : (
         <div className="space-y-6">
-          <Card className="p-10 border-[#D4AF37]/30 shadow-2xl relative overflow-hidden bg-white">
+          <Card className="p-10 border-[#D4AF37]/30 shadow-2xl relative overflow-hidden bg-white dark:bg-[#0F0F0F]">
             <div className="w-16 h-16 bg-[#2AABEE]/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-[#2AABEE]/20">
               <MessageSquare className="text-[#2AABEE]" size={28} />
             </div>
             
-            <h2 className="text-2xl font-black text-gray-900 mb-1 uppercase italic tracking-tighter">Остался 1 шаг</h2>
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1 uppercase italic tracking-tighter">Остался 1 шаг</h2>
             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-8">
                +{phone.replace(/\D/g, '')}
             </p>
 
-            <div className="bg-gray-50 rounded-[2rem] p-6 mb-8 border border-gray-100 shadow-inner">
-              <p className="text-xs text-gray-500 font-bold leading-relaxed">
-                Перейдите в Telegram и нажмите кнопку <br/><span className="text-gray-900">«📱 Подтвердить номер»</span>
+            <div className="bg-gray-50 dark:bg-[#1A1A1A] rounded-[2rem] p-6 mb-8 border border-gray-100 dark:border-gray-800 shadow-inner">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
+                Перейдите в Telegram и нажмите кнопку <br/><span className="text-gray-900 dark:text-white">«📱 Подтвердить номер»</span>
               </p>
             </div>
 
-            {/* Кнопка с цветом Telegram */}
             <Button 
               fullWidth 
               size="lg" 
@@ -170,9 +175,9 @@ export const AuthView = () => {
             
             <div className="mt-8 flex items-center justify-center gap-3">
               <div className="flex gap-1.5">
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" />
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.4s]" />
+                <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce" />
+                <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce [animation-delay:0.2s]" />
+                <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce [animation-delay:0.4s]" />
               </div>
               <span className="text-[10px] text-gray-400 font-black uppercase tracking-[0.15em]">Ожидаем подтверждения</span>
             </div>
