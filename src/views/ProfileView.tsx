@@ -5,13 +5,15 @@ import {
   Settings, User as UserIcon, ChevronDown, CreditCard
 } from 'lucide-react';
 import { cn } from '../cn';
+import { supabase } from '../supabase'; // для отправки уведомления админу
 
 // Функция для подсчета дней
 const getDaysDiff = (expiryStr: string) => {
   if (!expiryStr) return null;
   const today = new Date();
   const expiry = new Date(expiryStr);
-  today.setHours(0, 0, 0, 0); expiry.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
   
   const diffDays = Math.round((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   
@@ -26,7 +28,7 @@ const getDaysDiff = (expiryStr: string) => {
   return { count: diffDays, word: getWord(Math.abs(diffDays)) };
 };
 
-export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => {
+export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
@@ -37,27 +39,58 @@ export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => 
 
   // Достаем ссылку на Kaspi из .env
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
+  // ID чата админа и токен бота (из .env)
+  const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN;
+  const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID;
+
+  // Отправка уведомления админу через Telegram
+  const sendPaymentNotification = async () => {
+    if (!TG_BOT_TOKEN || !TG_CHAT_ID) {
+      console.error('Telegram credentials missing');
+      return false;
+    }
+    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+    const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: TG_CHAT_ID, text, parse_mode: 'Markdown' })
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
 
   const handleLogout = () => {
-    localStorage.clear();
-    window.location.reload(); 
+    localStorage.removeItem('golden_v2_session');
+    setUser(null);
+    setView('catalog');
   };
 
   const handleBuyVip = async () => {
     setIsSending(true);
-    const success = await sendPaymentNotification(user, "VIP Подписка (30 дней) - 5 000 ₸");
+    const success = await sendPaymentNotification();
     setIsSending(false);
     
     if (success) {
       setIsSent(true);
       setTimeout(() => setIsSent(false), 5000);
     } else {
-      alert("Ошибка сети. Попробуйте позже.");
+      alert("Ошибка отправки. Попробуйте позже.");
     }
   };
 
+  // Стили для светлой/тёмной темы
+  const bgClass = isLight ? "bg-white" : "bg-[#050505]";
+  const cardBgClass = isLight ? "bg-gray-50 border-gray-200" : "bg-[#0A0A0A] border-gray-800";
+  const textPrimaryClass = isLight ? "text-black" : "text-white";
+  const textSecondaryClass = isLight ? "text-gray-600" : "text-gray-400";
+  const borderClass = isLight ? "border-gray-200" : "border-gray-800";
+
   return (
-    <div className="min-h-screen bg-[#050505] pt-6 pb-24 px-4 animate-in fade-in duration-500 selection:bg-[#D4AF37]/30">
+    <div className={cn("min-h-screen pt-6 pb-24 px-4 animate-in fade-in duration-500", bgClass)}>
       
       <div className="flex items-center justify-between mb-8">
         <button 
@@ -66,7 +99,7 @@ export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => 
         >
           <ChevronLeft size={20} />
         </button>
-        <h1 className="text-xl font-black text-white uppercase tracking-widest">Кабинет</h1>
+        <h1 className={cn("text-xl font-black uppercase tracking-widest", textPrimaryClass)}>Кабинет</h1>
         <div className="w-10 h-10" /> 
       </div>
 
@@ -79,7 +112,7 @@ export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => 
             </div>
           )}
         </div>
-        <h2 className="text-2xl font-black text-white tracking-tight">{user?.full_name || 'Аноним'}</h2>
+        <h2 className={cn("text-2xl font-black tracking-tight", textPrimaryClass)}>{user?.full_name || 'Аноним'}</h2>
         <p className="text-[#D4AF37] font-bold text-sm tracking-[0.2em] uppercase mt-1">+{user?.phone}</p>
       </div>
 
@@ -132,7 +165,7 @@ export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => 
         )}
 
         {!isAdmin && !isVIP && (
-          <div className="p-6 bg-[#0A0A0A] rounded-[2rem] border border-gray-800 relative overflow-hidden">
+          <div className={cn("p-6 rounded-[2rem] border relative overflow-hidden", cardBgClass, borderClass)}>
             <div className="absolute top-0 right-0 p-4 opacity-5 text-white">
               <Lock size={80} />
             </div>
@@ -141,8 +174,8 @@ export const ProfileView = ({ user, setView, sendPaymentNotification }: any) => 
               <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Базовый</span>
             </div>
             
-            <h3 className="text-2xl font-black text-white mb-2 relative z-10">Покупки недоступны</h3>
-            <p className="text-gray-400 text-xs font-medium mb-6 relative z-10 w-5/6 leading-relaxed">
+            <h3 className={cn("text-2xl font-black mb-2 relative z-10", textPrimaryClass)}>Покупки недоступны</h3>
+            <p className={cn("text-xs font-medium mb-6 relative z-10 w-5/6 leading-relaxed", textSecondaryClass)}>
               Вы можете просматривать каталог номеров, но для <b>оформления заказа и бронирования</b> необходимо приобрести VIP-статус.
             </p>
 
