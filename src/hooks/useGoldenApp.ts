@@ -9,7 +9,14 @@ const KEYS = {
 
 export const useGoldenApp = () => {
   const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'my_orders' | 'order' | 'subscription'>('catalog');
-  const [isLight, setIsLight] = useState(() => localStorage.getItem(KEYS.THEME) === 'light');
+  
+  const [isLight, setIsLight] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(KEYS.THEME) === 'light';
+    }
+    return false;
+  });
+  
   const toggleTheme = () => {
     setIsLight(prev => {
       const next = !prev;
@@ -19,7 +26,7 @@ export const useGoldenApp = () => {
   };
 
   const [user, setUser] = useState<UserProfile | null>(() => {
-    const data = localStorage.getItem(KEYS.SESSION);
+    const data = typeof window !== 'undefined' ? localStorage.getItem(KEYS.SESSION) : null;
     return data ? JSON.parse(data) : null;
   });
 
@@ -31,7 +38,7 @@ export const useGoldenApp = () => {
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
 
-  // Admin state
+  // State for admin panel
   const [pn, setPn] = useState('');
   const [pr, setPr] = useState('');
   const [st, setSt] = useState<'IN_STOCK' | 'ON_ORDER'>('IN_STOCK');
@@ -86,15 +93,21 @@ export const useGoldenApp = () => {
       .select('role, subscription, expiry_date, name, tg_user_id')
       .eq('phone', cleanPhone)
       .eq('is_verified', true)
+      .limit(1)
       .maybeSingle();
+
     if (data) {
       let currentSub = data.subscription || 'INACTIVE';
       if (data.role === 'ADMIN') currentSub = 'ACTIVE';
-      setUser(prev => prev ? { ...prev, full_name: data.name, role: data.role || 'USER', subscription: currentSub } : null);
+      const updatedUser = { ...user, full_name: data.name, role: data.role || 'USER', subscription: currentSub, expiry_date: data.expiry_date };
+      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
+        setUser(updatedUser);
+      }
     }
-  }, [user?.phone]);
+  }, [user]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  
   useEffect(() => {
     if (user) {
       fetchUserOrders();
@@ -103,6 +116,11 @@ export const useGoldenApp = () => {
       localStorage.removeItem(KEYS.SESSION);
     }
   }, [user, fetchUserOrders]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.backgroundColor = isLight ? '#F4F4F6' : '#050505';
+  }, [isLight]);
 
   const filteredPhones = useMemo(() => {
     return phones.filter(p => {
