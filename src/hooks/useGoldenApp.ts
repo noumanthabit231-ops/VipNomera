@@ -4,22 +4,12 @@ import { Phone, Label, UserProfile } from '../types';
 
 const KEYS = { 
   SESSION: 'golden_v2_session',
-  PHONES_CACHE: 'golden_v2_phones_cache',
-  LABELS_CACHE: 'golden_v2_labels_cache',
   THEME: 'golden_v2_theme'
 };
 
 export const useGoldenApp = () => {
-  const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'my_orders'>('catalog');
-  
-  // Исправленная логика инициализации темы
-  const [isLight, setIsLight] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(KEYS.THEME) === 'light';
-    }
-    return false;
-  });
-  
+  const [view, setView] = useState<'catalog' | 'auth' | 'admin' | 'profile' | 'my_orders' | 'order' | 'subscription'>('catalog');
+  const [isLight, setIsLight] = useState(() => localStorage.getItem(KEYS.THEME) === 'light');
   const toggleTheme = () => {
     setIsLight(prev => {
       const next = !prev;
@@ -29,7 +19,7 @@ export const useGoldenApp = () => {
   };
 
   const [user, setUser] = useState<UserProfile | null>(() => {
-    const data = typeof window !== 'undefined' ? localStorage.getItem(KEYS.SESSION) : null;
+    const data = localStorage.getItem(KEYS.SESSION);
     return data ? JSON.parse(data) : null;
   });
 
@@ -41,17 +31,11 @@ export const useGoldenApp = () => {
   const [activeLabelFilter, setActiveLabelFilter] = useState<string | null>(null);
   const [selectedPhone, setSelectedPhone] = useState<Phone | null>(null);
 
-  // Состояния для админки
+  // Admin state
   const [pn, setPn] = useState('');
   const [pr, setPr] = useState('');
   const [st, setSt] = useState<'IN_STOCK' | 'ON_ORDER'>('IN_STOCK');
   const [sl, setSl] = useState<string[]>([]);
-
-  const tryLockPhone = async (phoneId: string) => {
-    const phone = phones.find(p => p.id === phoneId);
-    if (!phone || phone.status === 'SOLD') return false;
-    return true; 
-  };
 
   const createOrder = async (phoneData: any, type: 'PURCHASE' | 'ORDER') => {
     if (!user?.phone) return false;
@@ -73,9 +57,8 @@ export const useGoldenApp = () => {
     try {
       const [pRes, lRes] = await Promise.all([
         supabase.from('phones').select('*').order('created_at', { ascending: false }).limit(200),
-        supabase.from('labels').select('*').order('created_at', { ascending: true }) 
+        supabase.from('labels').select('*').order('created_at', { ascending: true })
       ]);
-      
       if (pRes.data) setPhones(pRes.data);
       if (lRes.data) setLabels(lRes.data);
     } catch (e) {
@@ -83,7 +66,7 @@ export const useGoldenApp = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []); 
+  }, []);
 
   const fetchUserOrders = useCallback(async () => {
     if (!user?.phone) return;
@@ -103,21 +86,15 @@ export const useGoldenApp = () => {
       .select('role, subscription, expiry_date, name, tg_user_id')
       .eq('phone', cleanPhone)
       .eq('is_verified', true)
-      .limit(1)
       .maybeSingle();
-
     if (data) {
       let currentSub = data.subscription || 'INACTIVE';
       if (data.role === 'ADMIN') currentSub = 'ACTIVE';
-      const updatedUser = { ...user, full_name: data.name, role: data.role || 'USER', subscription: currentSub };
-      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
-        setUser(updatedUser);
-      }
+      setUser(prev => prev ? { ...prev, full_name: data.name, role: data.role || 'USER', subscription: currentSub } : null);
     }
   }, [user?.phone]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  
   useEffect(() => {
     if (user) {
       fetchUserOrders();
@@ -127,26 +104,21 @@ export const useGoldenApp = () => {
     }
   }, [user, fetchUserOrders]);
 
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.backgroundColor = isLight ? '#F4F4F6' : '#050505';
-  }, [isLight]);
-
   const filteredPhones = useMemo(() => {
     return phones.filter(p => {
       if (p.status === 'SOLD' && p.sold_at) {
         if (Date.now() - new Date(p.sold_at).getTime() > 60000) return false;
       }
-      const mSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
-      const mLabel = activeLabelFilter ? (p.label_ids || []).includes(activeLabelFilter) : true;
-      return mSearch && mLabel;
+      const matchSearch = p.number.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchLabel = activeLabelFilter ? (p.label_ids || []).includes(activeLabelFilter) : true;
+      return matchSearch && matchLabel;
     });
   }, [phones, searchQuery, activeLabelFilter]);
 
   return {
     isLoading, view, setView, user, setUser, phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones, selectedPhone, setSelectedPhone,
-    userOrders, fetchData, refreshUserData, createOrder, tryLockPhone,
+    userOrders, fetchData, refreshUserData, createOrder,
     pn, setPn, pr, setPr, st, setSt, sl, setSl,
     isLight, toggleTheme
   };
