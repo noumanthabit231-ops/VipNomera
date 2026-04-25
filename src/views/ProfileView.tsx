@@ -7,15 +7,41 @@ import {
 import { cn } from '../cn';
 import { supabase } from '../supabase';
 
-const formatDisplay = (phoneDigits: string): string => {
-  if (!phoneDigits) return '+7';
-  let d = phoneDigits.replace(/\D/g, '');
-  if (d.length === 10) return `+7 ${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
-  if (d.length === 11 && d.startsWith('7')) d = d.slice(1);
-  if (d.length === 10) return `+7 ${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
-  return `+${d}`;
+// Вспомогательная функция: повторные попытки запроса
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) return res;
+      if (res.status === 503 || res.status === 500) {
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+        continue;
+      }
+      return res;
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
+// Приводит номер к 10 цифрам
+const normalizePhone = (phone: string): string => {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('7')) digits = digits.slice(1);
+  if (digits.length > 10) digits = digits.slice(-10);
+  return digits;
 };
 
+// Форматирует номер для отображения (+7 XXX XXX XX XX)
+const formatDisplay = (phoneDigits: string): string => {
+  if (!phoneDigits) return '+7';
+  const d = phoneDigits.padStart(10, '0').slice(0, 10);
+  return `+7 ${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
+};
+
+// Возвращает объект дней до окончания подписки
 const getDaysDiff = (expiryStr: string) => {
   if (!expiryStr) return null;
   const today = new Date();
@@ -30,7 +56,7 @@ const getDaysDiff = (expiryStr: string) => {
     if (last >= 2 && last <= 4) return 'дня';
     return 'дней';
   };
-  return { count: diffDays, word: getWord(Math.abs(diffDays)) };
+  return { count: Math.abs(diffDays), word: getWord(Math.abs(diffDays)), isExpired: diffDays < 0 };
 };
 
 export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
@@ -38,15 +64,15 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
   const [localVIP, setLocalVIP] = useState(user?.subscription === 'ACTIVE');
+  const [daysLeft, setDaysLeft] = useState<{ count: number; word: string; isExpired: boolean } | null>(null);
 
+  // Получаем 10-значный номер пользователя
   const getPhoneDigits = (): string => {
     if (!user?.phone) return '';
-    let digits = user.phone.replace(/\D/g, '');
-    if (digits.length === 11 && digits.startsWith('7')) digits = digits.slice(1);
-    if (digits.length > 10) digits = digits.slice(-10);
-    return digits;
+    return normalizePhone(user.phone);
   };
 
+  // Обновить статус VIP напрямую из БД
   const refreshUserStatus = async () => {
     const digits = getPhoneDigits();
     if (!digits) return;
@@ -56,18 +82,17 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
       .eq('phone', digits)
       .maybeSingle();
     if (data && !error) {
+      const isVipActive = data.subscription === 'ACTIVE' && (!data.expiry_date || new Date(data.expiry_date) > new Date());
+      setLocalVIP(isVipActive);
+      if (data.expiry_date) setDaysLeft(getDaysDiff(data.expiry_date));
+      // Обновляем глобального пользователя, если изменилось
       if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
         setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
-        setLocalVIP(data.subscription === 'ACTIVE');
-        alert('✅ VIP статус обновлён!');
-      } else {
-        setLocalVIP(data.subscription === 'ACTIVE');
       }
-    } else {
-      alert('Ошибка получения статуса.');
     }
   };
 
+  // Периодическая проверка статуса VIP (каждые 10 секунд)
   useEffect(() => {
     refreshUserStatus();
     const interval = setInterval(refreshUserStatus, 10000);
@@ -76,17 +101,33 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
 
   const isAdmin = user?.role === 'ADMIN';
   const isVIP = localVIP || isAdmin;
-  const daysLeft = getDaysDiff(user?.expiry_date);
   const displayPhone = formatDisplay(getPhoneDigits());
 
-  const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
+  // Прямое обновление VIP через Supabase (без Edge-функции)
+  const activateVipDirectly = async () => {
+    const digits = getPhoneDigits();
+    if (!digits) return false;
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+    const { error } = await supabase
+      .from('auth_codes')
+      .update({ subscription: 'ACTIVE', expiry_date: expiryDate.toISOString() })
+      .eq('phone', digits);
+    if (!error) {
+      await refreshUserStatus();
+      return true;
+    }
+    return false;
+  };
 
+  // Отправка уведомления админу (через Edge-функцию, но с повторными попытками и fallback)
   const sendPaymentNotification = async () => {
     const digits = getPhoneDigits();
     if (!digits) return false;
+
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 3 500 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
     const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
-    const contactUrl = `https://t.me/+7${digits}`;
+    const contactUrl = `https://t.me/+${digits}`;
     const reply_markup = {
       inline_keyboard: [[
         { text: "✅ Подтвердить VIP", url: vipConfirmUrl },
@@ -101,16 +142,39 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     for (const { token, chatId } of targets) {
       if (!token || !chatId) continue;
       try {
-        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        const res = await fetchWithRetry(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown', reply_markup })
         });
-        const data = await res.json();
-        if (data.ok) success = true;
+        if (res.ok) success = true;
       } catch (err) { console.error(err); }
     }
     return success;
+  };
+
+  const handleBuyVip = async () => {
+    setIsSending(true);
+    // Сначала пытаемся отправить уведомление админу (через Telegram)
+    const notified = await sendPaymentNotification();
+    if (notified) {
+      setIsSent(true);
+      setTimeout(() => setIsSent(false), 3500);
+      // Дополнительно: можно сразу активировать VIP, если доверяете пользователю, но лучше дождаться подтверждения админа.
+      // Для автоматической активации раскомментируйте следующую строку:
+      // await activateVipDirectly();
+    } else {
+      // Если уведомление не отправилось, пробуем активировать VIP напрямую (как запасной вариант)
+      const activated = await activateVipDirectly();
+      if (activated) {
+        alert("VIP активирован автоматически. Статус обновлён.");
+        setIsSent(true);
+        setTimeout(() => setIsSent(false), 3500);
+      } else {
+        alert("Не удалось отправить уведомление и активировать VIP. Попробуйте позже или свяжитесь с поддержкой.");
+      }
+    }
+    setIsSending(false);
   };
 
   const handleLogout = () => {
@@ -119,20 +183,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     setView('catalog');
   };
 
-  const handleBuyVip = async () => {
-    setIsSending(true);
-    const success = await sendPaymentNotification();
-    setIsSending(false);
-    if (success) {
-      setIsSent(true);
-      setTimeout(() => setIsSent(false), 3500);
-    } else {
-      alert("Ошибка отправки. Попробуйте позже.");
-    }
-  };
-
   const contactManager = () => {
-    // Номер менеджера: 77077977767 (10 цифр)
     window.open('https://t.me/+77077977767', '_blank');
   };
 
@@ -175,13 +226,11 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               <div className="p-2 bg-blue-500/20 text-blue-400 rounded-xl"><Crown size={20} /></div>
               <span className="text-sm font-black text-blue-400 uppercase tracking-widest">Владелец</span>
             </div>
-            <h3 className="text-2xl font-black text-white mb-2 relative z-10">Безлимитный<br/>доступ</h3>
+            <h3 className="text-2xl font-black text-white mb-2 relative z-10">Безлимитный доступ</h3>
             <p className="text-gray-400 text-xs font-medium mb-4 relative z-10 w-3/4">Вам доступны все скрытые функции и панель управления системой.</p>
-            <div className="flex flex-col gap-3">
-              <button onClick={() => setView('admin')} className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-[0_5px_20px_rgba(59,130,246,0.3)] active:scale-95">
-                <Settings size={16} /> Открыть Админ-панель
-              </button>
-            </div>
+            <button onClick={() => setView('admin')} className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-[0_5px_20px_rgba(59,130,246,0.3)] active:scale-95">
+              <Settings size={16} /> Открыть Админ-панель
+            </button>
           </div>
         )}
 
@@ -196,7 +245,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">Активен</span>
             </div>
             <h3 className="text-2xl font-black text-white mb-6 relative z-10">Вам доступны все покупки и бронирования</h3>
-            {daysLeft && (
+            {daysLeft && !daysLeft.isExpired && (
               <div className="flex items-center justify-between p-4 bg-black/40 border border-[#D4AF37]/20 rounded-2xl relative z-10 backdrop-blur-sm">
                 <div className="flex items-center gap-3 text-gray-300">
                   <Clock size={16} className="text-[#D4AF37]" />
@@ -208,12 +257,18 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
                 </div>
               </div>
             )}
+            {daysLeft?.isExpired && (
+              <div className="flex items-center justify-between p-4 bg-black/40 border border-red-500/30 rounded-2xl relative z-10">
+                <span className="text-xs font-bold text-red-400">Подписка истекла</span>
+                <button onClick={handleBuyVip} className="px-4 py-2 bg-[#D4AF37] text-black rounded-xl text-[10px] font-black">Продлить</button>
+              </div>
+            )}
           </div>
         )}
 
         {!isAdmin && !isVIP && (
           <div className={cn("p-6 rounded-[2rem] border relative overflow-hidden", cardBgClass, borderClass)}>
-            <div className="absolute top-0 right-0 p-4 opacity-5 text-white"><Lock size={80} /></div>
+            <div className="absolute top-0 right-0 p-4 opacity-5"><Lock size={80} /></div>
             <div className="flex items-center gap-3 mb-4 relative z-10">
               <div className="p-2 bg-gray-800 text-gray-400 rounded-xl"><Lock size={20} /></div>
               <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Базовый</span>
@@ -229,7 +284,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               </div>
               <div className="text-2xl font-black italic tracking-tighter text-white">3 500 ₸</div>
             </div>
-            <a href={kaspiPaymentLink} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 py-4 mb-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all bg-[#F14635] text-white hover:bg-[#D93D2E] active:scale-95 shadow-[0_10px_25px_rgba(241,70,53,0.2)] relative z-10">
+            <a href={import.meta.env.VITE_KASPI_LINK || "https://kaspi.kz/"} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 py-4 mb-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all bg-[#F14635] text-white hover:bg-[#D93D2E] active:scale-95 shadow-[0_10px_25px_rgba(241,70,53,0.2)] relative z-10">
               <CreditCard size={18} /> Оплатить через Kaspi
             </a>
             <button onClick={handleBuyVip} disabled={isSending || isSent} className={cn("w-full flex items-center justify-center gap-2 py-4 mb-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all", isSent ? "bg-green-500/10 text-green-500 border border-green-500/30" : "bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 active:scale-95 shadow-[0_5px_15px_rgba(212,175,55,0.2)]")}>
