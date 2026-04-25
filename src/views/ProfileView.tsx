@@ -36,10 +36,11 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
   const [localVIP, setLocalVIP] = useState(user?.subscription === 'ACTIVE');
 
-  const getPhoneDigits = (): string => {
+  const getPhone11 = (): string => {
   if (!user?.phone) return '';
   let digits = user.phone.replace(/\D/g, '');
-  if (digits.length === 11 && digits.startsWith('7')) digits = digits.slice(1);
+  if (digits.length === 10) digits = '7' + digits;
+  if (digits.length > 11) digits = digits.slice(0, 11);
   return digits;
 };
 
