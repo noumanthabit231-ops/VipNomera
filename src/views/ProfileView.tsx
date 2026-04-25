@@ -24,23 +24,16 @@ const getDaysDiff = (expiryStr: string) => {
   return { count: diffDays, word: getWord(Math.abs(diffDays)) };
 };
 
-const normalizePhoneForLink = (phone: string) => {
-  let digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('7') && digits.length === 11) digits = digits.slice(1);
-  if (!digits.startsWith('7')) digits = '7' + digits;
-  if (digits.length > 11) digits = digits.slice(0, 11);
-  return digits;
-};
-
 export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
 
-  // Ручное обновление статуса (по кнопке)
   const refreshUserStatus = async () => {
     if (!user?.phone) return;
-    const cleanPhone = user.phone.replace(/\D/g, '');
+    let cleanPhone = user.phone.replace(/\D/g, '');
+    // Приводим к 10 цифрам (убираем ведущую 7, если есть)
+    if (cleanPhone.startsWith('7') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
     const { data, error } = await supabase
       .from('auth_codes')
       .select('subscription, expiry_date, role')
@@ -51,7 +44,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
         setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
         alert('✅ Статус обновлён!');
       } else if (data.subscription === 'ACTIVE') {
-        alert('VIP уже активен. Если интерфейс не изменился, перезагрузите страницу (F5).');
+        alert('VIP уже активен.');
       } else {
         alert('VIP не активен.');
       }
@@ -67,14 +60,20 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
   const sendPaymentNotification = async () => {
-    let cleanPhone = user?.phone?.replace(/\D/g, '');
-    if (!cleanPhone) return false;
+    if (!user?.phone) return false;
+    let cleanPhone = user.phone.replace(/\D/g, '');
+    // Приводим к 10 цифрам (то, что хранится в БД)
     if (cleanPhone.startsWith('7') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
-    if (!cleanPhone.startsWith('7')) cleanPhone = '7' + cleanPhone;
+    if (cleanPhone.length !== 10) {
+      console.error('Некорректный номер:', cleanPhone);
+      alert('Номер телефона должен содержать 10 цифр после кода страны');
+      return false;
+    }
 
-    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${cleanPhone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+    
     const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${cleanPhone}`;
-    const contactUrl = `https://t.me/+${cleanPhone}`;
+    const contactUrl = `https://t.me/+7${cleanPhone}`; // для открытия чата с клиентом
     
     const replyMarkup = {
       inline_keyboard: [
@@ -253,7 +252,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
               className="w-full flex items-center justify-between p-4 bg-[#111] border border-gray-800 rounded-2xl relative z-10 text-gray-400 hover:text-white transition-colors"
             >
-              <span className="text-[10px] font-black uppercase tracking-widest">У вас другой банк?</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">Что делать после оплаты?</span>
               <ChevronDown size={16} className={cn("transition-transform", isInstructionsOpen ? "rotate-180" : "")} />
             </button>
 
