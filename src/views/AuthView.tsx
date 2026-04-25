@@ -44,7 +44,7 @@ export const AuthView = () => {
 
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-  const handleStartAuth = async () => {
+  handleStartAuth = async () => {
   const phone10 = getPhone10();
   if (!phone10) {
     alert('Введите 10 цифр номера');
@@ -58,40 +58,47 @@ export const AuthView = () => {
   const sessionToken = generateSessionToken();
   setCode(sessionToken);
 
-  // 1. Удаляем все старые неверифицированные записи для этого номера
-  await supabase.from('auth_codes').delete().eq('phone', phone10).eq('is_verified', false);
+  // Проверяем, существует ли уже запись с таким номером
+  const { data: existing, error: fetchError } = await supabase
+    .from('auth_codes')
+    .select('id, is_verified, name')
+    .eq('phone', phone10)
+    .maybeSingle();
 
-  // 2. Для режима восстановления проверяем, существует ли верифицированный аккаунт
-  if (mode === 'restore') {
-    const { data: existingVerified } = await supabase
-      .from('auth_codes')
-      .select('id')
-      .eq('phone', phone10)
-      .eq('is_verified', true)
-      .maybeSingle();
-
-    if (!existingVerified) {
+  if (mode === 'register') {
+    // При регистрации номер не должен существовать
+    if (existing) {
+      setLoading(false);
+      alert('Этот номер уже зарегистрирован. Войдите в аккаунт (режим "У меня уже есть аккаунт").');
+      return;
+    }
+    // Создаём новую запись
+    const { error } = await supabase.from('auth_codes').insert([{
+      phone: phone10,
+      code: sessionToken,
+      is_verified: false,
+      name: name.trim(),
+    }]);
+    setLoading(false);
+    if (!error) setStep('verify');
+    else alert('Ошибка при регистрации: ' + error.message);
+  } else { // режим восстановления
+    if (!existing) {
       setLoading(false);
       alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
       return;
     }
-  }
-
-  // 3. Создаём новую неверифицированную запись (и для регистрации, и для восстановления)
-  const { error } = await supabase.from('auth_codes').insert([{
-    phone: phone10,
-    code: sessionToken,
-    is_verified: false,
-    name: name.trim() || 'Пользователь',
-  }]);
-
-  setLoading(false);
-  if (!error) {
-    setStep('verify');
-  } else {
-    alert('Ошибка при регистрации: ' + error.message);
+    // Обновляем существующую запись: новый код, сбрасываем верификацию
+    const { error } = await supabase
+      .from('auth_codes')
+      .update({ code: sessionToken, is_verified: false })
+      .eq('id', existing.id);
+    setLoading(false);
+    if (!error) setStep('verify');
+    else alert('Ошибка при обновлении: ' + error.message);
   }
 };
+
 
   useEffect(() => {
     if (step !== 'verify') return;
