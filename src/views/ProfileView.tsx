@@ -253,7 +253,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
               className="w-full flex items-center justify-between p-4 bg-[#111] border border-gray-800 rounded-2xl relative z-10 text-gray-400 hover:text-white transition-colors"
             >
-              <span className="text-[10px] font-black uppercase tracking-widest">Что делать после оплаты?</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">У вас другой банк?</span>
               <ChevronDown size={16} className={cn("transition-transform", isInstructionsOpen ? "rotate-180" : "")} />
             </button>
 
