@@ -23,11 +23,9 @@ export const AuthView = () => {
   const inputRef3 = useRef<HTMLInputElement>(null);
   const inputRef4 = useRef<HTMLInputElement>(null);
 
-  // Возвращает ровно 10 цифр (без +7)
   const getPhone10 = () => {
     const digits = part1 + part2 + part3 + part4;
-    if (digits.length !== 10) return null;
-    return digits;
+    return digits.length === 10 ? digits : null;
   };
 
   const getDisplayPhone = () => {
@@ -60,22 +58,22 @@ export const AuthView = () => {
     const sessionToken = generateSessionToken();
     setCode(sessionToken);
 
-    if (mode === 'register') {
-      const { error } = await supabase
-        .from('auth_codes')
-        .insert([{ phone: phone10, code: sessionToken, is_verified: false, name: name.trim() }]);
-      setLoading(false);
-      if (!error) setStep('verify');
-      else alert('Ошибка при регистрации: ' + error.message);
+    // Удаляем все старые неверифицированные записи для этого номера
+    await supabase.from('auth_codes').delete().eq('phone', phone10).eq('is_verified', false);
+    
+    // Вставляем новую запись
+    const { error } = await supabase.from('auth_codes').insert([{
+      phone: phone10,
+      code: sessionToken,
+      is_verified: false,
+      name: name.trim() || 'Пользователь',
+    }]);
+
+    setLoading(false);
+    if (!error) {
+      setStep('verify');
     } else {
-      // Восстановление: обновляем код для существующего номера (10 цифр)
-      const { error } = await supabase
-        .from('auth_codes')
-        .update({ code: sessionToken, is_verified: false })
-        .eq('phone', phone10);
-      setLoading(false);
-      if (!error) setStep('verify');
-      else alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
+      alert('Ошибка при регистрации: ' + error.message);
     }
   };
 
@@ -83,6 +81,7 @@ export const AuthView = () => {
     if (step !== 'verify') return;
     const phone10 = getPhone10();
     if (!phone10) return;
+    
     const interval = setInterval(async () => {
       const { data, error } = await supabase
         .from('auth_codes')
@@ -90,10 +89,11 @@ export const AuthView = () => {
         .eq('phone', phone10)
         .eq('code', code)
         .single();
+      
       if (data?.is_verified) {
         clearInterval(interval);
         setUser({
-          phone: phone10, // 10 цифр
+          phone: phone10,
           full_name: data.name || (mode === 'register' ? name : 'Пользователь'),
           role: data.role || 'USER',
           subscription: data.subscription || 'INACTIVE',
@@ -103,6 +103,7 @@ export const AuthView = () => {
         setView('catalog');
       }
     }, 2000);
+    
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
