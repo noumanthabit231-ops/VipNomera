@@ -34,15 +34,22 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
 
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
-  // Отправка уведомления в два чата с инлайн-кнопкой
   const sendPaymentNotification = async () => {
     const cleanPhone = user?.phone?.replace(/\D/g, '');
     if (!cleanPhone) return false;
 
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
-    const replyMarkup = `{"inline_keyboard":[[{"text":"✅ Подтвердить VIP","callback_data":"confirm_${cleanPhone}"}]]}`;
+    
+    // Две кнопки: подтвердить и связаться (Telegram)
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: "✅ Подтвердить VIP", callback_data: `confirm_${cleanPhone}` },
+          { text: "📞 Связаться", url: `https://t.me/+${cleanPhone}` }
+        ]
+      ]
+    };
 
-    // Токены и чаты (основной и дополнительный)
     const targets = [
       { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
       { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
@@ -64,9 +71,8 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
         });
         const data = await res.json();
         if (data.ok) success = true;
-        else console.error(`Ошибка токена ${token}:`, data);
       } catch (err) {
-        console.error(`Ошибка отправки для токена ${token}:`, err);
+        console.error(err);
       }
     }
     return success;
@@ -90,7 +96,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     }
   };
 
-  // Связь с менеджером (WhatsApp)
   const contactManager = () => {
     window.open('https://wa.me/77077977767', '_blank');
   };
@@ -104,10 +109,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   return (
     <div className={cn("min-h-screen pt-6 pb-24 px-4 animate-in fade-in duration-500", bgClass)}>
       <div className="flex items-center justify-between mb-8">
-        <button 
-          onClick={() => setView('catalog')}
-          className="w-10 h-10 flex items-center justify-center bg-[#111] border border-gray-800 rounded-full text-gray-400 hover:text-white transition-all active:scale-95"
-        >
+        <button onClick={() => setView('catalog')} className="w-10 h-10 flex items-center justify-center bg-[#111] border border-gray-800 rounded-full text-gray-400 hover:text-white transition-all active:scale-95">
           <ChevronLeft size={20} />
         </button>
         <h1 className={cn("text-xl font-black uppercase tracking-widest", textPrimaryClass)}>Кабинет</h1>
