@@ -58,19 +58,23 @@ export const AuthView = () => {
     const sessionToken = generateSessionToken();
     setCode(sessionToken);
 
-    // Проверяем, есть ли уже запись с таким номером
+    // Ищем существующую запись для этого номера
     const { data: existing, error: fetchError } = await supabase
       .from('auth_codes')
-      .select('id, is_verified, name')
+      .select('id, is_verified, name, subscription, expiry_date, role')
       .eq('phone', phone10)
       .maybeSingle();
 
     if (mode === 'register') {
       // Регистрация нового пользователя
-      if (existing) {
+      if (existing && existing.is_verified) {
         setLoading(false);
         alert('Этот номер уже зарегистрирован. Пожалуйста, войдите через "У меня уже есть аккаунт".');
         return;
+      }
+      // Если есть неверифицированная запись – удалим её (чтобы создать новую)
+      if (existing && !existing.is_verified) {
+        await supabase.from('auth_codes').delete().eq('id', existing.id);
       }
       const { error } = await supabase.from('auth_codes').insert([{
         phone: phone10,
@@ -82,15 +86,19 @@ export const AuthView = () => {
       if (!error) setStep('verify');
       else alert('Ошибка при регистрации: ' + error.message);
     } else {
-      // Восстановление доступа – обновляем существующую запись
-      if (!existing) {
+      // Восстановление доступа – обновляем существующую верифицированную запись
+      if (!existing || !existing.is_verified) {
         setLoading(false);
         alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
         return;
       }
+      // Обновляем только код и сбрасываем is_verified, сохраняя подписку
       const { error } = await supabase
         .from('auth_codes')
-        .update({ code: sessionToken, is_verified: false })
+        .update({
+          code: sessionToken,
+          is_verified: false,
+        })
         .eq('id', existing.id);
       setLoading(false);
       if (!error) setStep('verify');
