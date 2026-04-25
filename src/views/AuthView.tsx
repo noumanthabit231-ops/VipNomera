@@ -39,12 +39,7 @@ export const AuthView = () => {
     return `+7 ${p1} ${p2} ${p3} ${p4}`;
   };
 
-  const handlePartChange = (
-    value: string,
-    setter: React.Dispatch<React.SetStateAction<string>>,
-    maxLen: number,
-    nextRef?: React.RefObject<HTMLInputElement>
-  ) => {
+  const handlePartChange = (value: string, setter: React.Dispatch<React.SetStateAction<string>>, maxLen: number, nextRef?: React.RefObject<HTMLInputElement>) => {
     const digits = value.replace(/\D/g, '').slice(0, maxLen);
     setter(digits);
     if (digits.length === maxLen && nextRef) nextRef.current?.focus();
@@ -111,35 +106,24 @@ export const AuthView = () => {
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
-  // Стили полей ввода – мягкие, с золотым акцентом при фокусе
-  const inputFieldClass = cn(
-    "w-12 sm:w-14 h-12 text-center rounded-xl text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50",
-    isLight
-      ? "bg-white/80 text-black border border-gray-200 focus:border-[#D4AF37]"
-      : "bg-black/30 text-white border border-gray-700 focus:border-[#D4AF37]"
-  );
+  // Стили для светлой и тёмной темы
+  const cardBg = isLight ? 'bg-white' : 'bg-[#0f0f0f]';
+  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
+  const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
+  const inputBg = isLight ? 'bg-gray-100' : 'bg-[#1a1a1a]';
+  const inputBorder = isLight ? 'border-gray-300' : 'border-gray-700';
+  const iconBg = isLight ? 'bg-gray-100' : 'bg-[#1a1a1a]';
+  const iconBorder = isLight ? 'border-gray-200' : 'border-gray-800';
 
-  // Заголовки
-  const titleClass = cn(
-    "text-3xl font-black uppercase italic tracking-tighter",
-    isLight ? "text-gray-900" : "text-white"
-  );
-  const subtitleClass = cn(
-    "text-[10px] font-bold uppercase tracking-[0.2em]",
-    isLight ? "text-gray-500" : "text-gray-400"
-  );
+  const titleClass = cn("text-3xl font-black uppercase italic tracking-tighter", textPrimary);
+  const subtitleClass = cn("text-[10px] font-bold uppercase tracking-[0.2em]", textSecondary);
 
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
       {step === 'phone' ? (
-        <Card className="p-8 shadow-2xl relative overflow-hidden">
+        <div className={cn("p-8 rounded-[2rem] border shadow-2xl relative overflow-hidden", cardBg, isLight ? 'border-gray-200' : 'border-gray-800')}>
           <div className="absolute top-0 left-0 w-full h-1 bg-[#D4AF37]/30" />
-          <div
-            className={cn(
-              "w-16 h-16 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border shadow-inner",
-              isLight ? "bg-white border-gray-100" : "bg-black/20 border-gray-800"
-            )}
-          >
+          <div className={cn("w-16 h-16 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border", iconBg, iconBorder)}>
             {mode === 'register' ? (
               <Smartphone className={isLight ? "text-gray-800" : "text-gray-300"} size={28} />
             ) : (
@@ -158,52 +142,48 @@ export const AuthView = () => {
                 placeholder="Ваше имя"
                 className={cn(
                   "w-full rounded-2xl p-4 text-center text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50",
-                  isLight
-                    ? "bg-white/80 text-black border border-gray-200 placeholder:text-gray-400"
-                    : "bg-black/30 text-white border border-gray-700 placeholder:text-gray-500"
+                  inputBg, textPrimary, inputBorder, "placeholder:text-gray-400"
                 )}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             )}
             <div>
-              <div className={cn("text-xs mb-2 text-left", isLight ? "text-gray-600" : "text-gray-400")}>
-                Введите номер телефона:
-              </div>
+              <div className={cn("text-xs mb-2 text-left", textSecondary)}>Введите номер телефона:</div>
               <div className="flex items-center justify-center gap-2 flex-wrap">
-                <span className={cn("text-2xl font-bold", isLight ? "text-gray-800" : "text-white")}>+7</span>
+                <span className={cn("text-2xl font-bold", textPrimary)}>+7</span>
                 <input
                   ref={inputRef1}
                   type="text"
                   maxLength={3}
-                  className={inputFieldClass}
+                  className={cn("w-12 sm:w-14 h-12 text-center rounded-xl text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50", inputBg, textPrimary, inputBorder)}
                   value={part1}
                   onChange={(e) => handlePartChange(e.target.value, setPart1, 3, inputRef2)}
                 />
-                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-600")}>-</span>
+                <span className={cn("text-xl", textSecondary)}>-</span>
                 <input
                   ref={inputRef2}
                   type="text"
                   maxLength={3}
-                  className={inputFieldClass}
+                  className={cn("w-12 sm:w-14 h-12 text-center rounded-xl text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50", inputBg, textPrimary, inputBorder)}
                   value={part2}
                   onChange={(e) => handlePartChange(e.target.value, setPart2, 3, inputRef3)}
                 />
-                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-600")}>-</span>
+                <span className={cn("text-xl", textSecondary)}>-</span>
                 <input
                   ref={inputRef3}
                   type="text"
                   maxLength={2}
-                  className={inputFieldClass}
+                  className={cn("w-10 sm:w-12 h-12 text-center rounded-xl text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50", inputBg, textPrimary, inputBorder)}
                   value={part3}
                   onChange={(e) => handlePartChange(e.target.value, setPart3, 2, inputRef4)}
                 />
-                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-600")}>-</span>
+                <span className={cn("text-xl", textSecondary)}>-</span>
                 <input
                   ref={inputRef4}
                   type="text"
                   maxLength={2}
-                  className={inputFieldClass}
+                  className={cn("w-10 sm:w-12 h-12 text-center rounded-xl text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50", inputBg, textPrimary, inputBorder)}
                   value={part4}
                   onChange={(e) => handlePartChange(e.target.value, setPart4, 2)}
                 />
@@ -223,32 +203,24 @@ export const AuthView = () => {
                 setPart3('');
                 setPart4('');
               }}
-              className={cn(
-                "text-[10px] font-black uppercase tracking-widest pt-4 hover:opacity-70 transition-opacity",
-                "text-[#D4AF37]"
-              )}
+              className="text-[10px] font-black uppercase tracking-widest pt-4 hover:opacity-70 transition-opacity text-[#D4AF37]"
             >
               {mode === 'register' ? '✨ У меня уже есть аккаунт' : '👤 Создать новый аккаунт'}
             </button>
           </div>
-        </Card>
+        </div>
       ) : (
         <div className="space-y-6">
-          <Card className="p-8 shadow-2xl relative overflow-hidden">
+          <div className={cn("p-8 rounded-[2rem] border shadow-2xl relative overflow-hidden", cardBg, isLight ? 'border-gray-200' : 'border-gray-800')}>
             <div className="w-16 h-16 bg-[#2AABEE]/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-[#2AABEE]/20">
               <MessageSquare className="text-[#2AABEE]" size={28} />
             </div>
             <h2 className={titleClass}>Остался 1 шаг</h2>
             <p className={subtitleClass}>{getDisplayedPhone()}</p>
-            <div
-              className={cn(
-                "rounded-[2rem] p-6 mb-8 border shadow-inner",
-                isLight ? "bg-white/50 border-gray-100" : "bg-black/20 border-gray-800"
-              )}
-            >
-              <p className={cn("text-xs font-bold leading-relaxed", isLight ? "text-gray-600" : "text-gray-400")}>
+            <div className={cn("rounded-[2rem] p-6 mb-8 border", inputBg, inputBorder)}>
+              <p className={cn("text-xs font-bold leading-relaxed", textSecondary)}>
                 Перейдите в Telegram и нажмите кнопку <br />
-                <span className={isLight ? "text-black" : "text-white"}>«📱 Подтвердить номер»</span>
+                <span className={textPrimary}>«📱 Подтвердить номер»</span>
               </p>
             </div>
             <Button
@@ -261,36 +233,19 @@ export const AuthView = () => {
             </Button>
             <div className="mt-8 flex items-center justify-center gap-3">
               <div className="flex gap-1.5">
-                <span
-                  className={cn(
-                    "w-1.5 h-1.5 rounded-full animate-bounce",
-                    isLight ? "bg-gray-400" : "bg-gray-600"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.2s]",
-                    isLight ? "bg-gray-400" : "bg-gray-600"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.4s]",
-                    isLight ? "bg-gray-400" : "bg-gray-600"
-                  )}
-                />
+                <span className={cn("w-1.5 h-1.5 rounded-full animate-bounce", isLight ? "bg-gray-400" : "bg-gray-600")} />
+                <span className={cn("w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.2s]", isLight ? "bg-gray-400" : "bg-gray-600")} />
+                <span className={cn("w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.4s]", isLight ? "bg-gray-400" : "bg-gray-600")} />
               </div>
-              <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", isLight ? "text-gray-500" : "text-gray-400")}>
-                Ожидаем подтверждения
-              </span>
+              <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", textSecondary)}>Ожидаем подтверждения</span>
             </div>
-          </Card>
+          </div>
           <button
             onClick={() => setStep('phone')}
             className="flex items-center justify-center gap-2 mx-auto text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-[#D4AF37]"
           >
-            <ArrowLeft size={14} className={isLight ? "text-gray-500" : "text-gray-400"} />
-            <span className={isLight ? "text-gray-500" : "text-gray-400"}>Изменить номер</span>
+            <ArrowLeft size={14} className={textSecondary} />
+            <span className={textSecondary}>Изменить номер</span>
           </button>
         </div>
       )}
