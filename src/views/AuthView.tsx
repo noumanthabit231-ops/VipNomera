@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, ExternalLink, Smartphone, ArrowLeft, RefreshCcw, Loader2 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { Button } from '../components/ui/Button';
@@ -6,21 +6,6 @@ import { Card } from '../components/ui/Card';
 import { useGoldenApp } from '../hooks/useGoldenApp';
 
 const BOT_USERNAME = "vipvipnumbers_bot";
-
-// Приводим номер к 11 цифрам (начинается с 7)
-const normalizePhone = (phone: string): string => {
-  let digits = phone.replace(/\D/g, '');
-  if (digits.length === 10) digits = '7' + digits;
-  if (digits.length !== 11) digits = '7' + digits.slice(-10);
-  return digits;
-};
-
-// Для отображения: +7 777 777 77 77
-const formatDisplay = (digits: string): string => {
-  if (!digits) return '+7';
-  const d = digits.padStart(11, '7').slice(0, 11);
-  return `+7 ${d.slice(1,4)} ${d.slice(4,7)} ${d.slice(7,9)} ${d.slice(9,11)}`;
-};
 
 export const AuthView = () => {
   const { setUser, setView } = useGoldenApp();
@@ -44,80 +29,70 @@ export const AuthView = () => {
     if (digits.length !== 10) return null;
     return '7' + digits; // 11 цифр для БД
   };
+
+  const handlePartChange = (value: string, setter: React.Dispatch<React.SetStateAction<string>>, nextRef?: React.RefObject<HTMLInputElement>) => {
+    const digits = value.replace(/\D/g, '');
+    setter(digits);
+    if (digits.length === (setter === setPart1 || setter === setPart2 ? 3 : 2) && nextRef) {
+      nextRef.current?.focus();
+    }
+  };
+
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleStartAuth = async () => {
-    const cleanPhone = normalizePhone(phoneRaw);
-    if (cleanPhone.length !== 11) {
-      alert('Введите 11 цифр номера (например, 77777777777)');
+    const fullPhone = getFullPhoneDigits();
+    if (!fullPhone) {
+      alert('Введите 10 цифр номера');
       return;
     }
     if (mode === 'register' && !name.trim()) {
       alert("Пожалуйста, введите ваше имя");
       return;
     }
-    
     setLoading(true);
     const sessionToken = generateSessionToken();
     setCode(sessionToken);
 
     if (mode === 'register') {
-      // Регистрация: вставляем новую запись
       const { error } = await supabase
         .from('auth_codes')
-        .insert([{ 
-          phone: cleanPhone, 
+        .insert([{
+          phone: fullPhone,
           code: sessionToken,
           is_verified: false,
           name: name.trim()
         }]);
-      if (error) {
-        console.error(error);
-        if (error.code === '23505') {
-          alert('Этот номер уже зарегистрирован. Войдите или восстановите доступ.');
-        } else {
-          alert("Ошибка при сохранении: " + error.message);
-        }
-        setLoading(false);
-        return;
-      }
+      setLoading(false);
+      if (!error) setStep('verify');
+      else alert("Ошибка при регистрации: " + error.message);
     } else {
-      // Вход (restore): обновляем код только для существующего пользователя
+      // Режим входа – обновляем существующую запись
       const { error } = await supabase
         .from('auth_codes')
         .update({ code: sessionToken, is_verified: false })
-        .eq('phone', cleanPhone);
-      if (error) {
-        console.error(error);
-        if (error.code === 'PGRST116') {
-          alert('Пользователь с таким номером не найден. Зарегистрируйтесь.');
-        } else {
-          alert("Ошибка: " + error.message);
-        }
-        setLoading(false);
-        return;
-      }
+        .eq('phone', fullPhone);
+      setLoading(false);
+      if (!error) setStep('verify');
+      else alert("Пользователь не найден. Проверьте номер или зарегистрируйтесь.");
     }
-    setStep('verify');
-    setLoading(false);
   };
 
   useEffect(() => {
     if (step !== 'verify') return;
-
-    const cleanPhone = normalizePhone(phoneRaw);
+    const fullPhone = getFullPhoneDigits();
+    if (!fullPhone) return;
     const interval = setInterval(async () => {
       const { data, error } = await supabase
         .from('auth_codes')
         .select('is_verified, name, role, subscription, expiry_date, tg_user_id')
-        .eq('phone', cleanPhone)
+        .eq('phone', fullPhone)
         .eq('code', code)
-        .maybeSingle();
-
+        .single();
       if (data?.is_verified) {
         clearInterval(interval);
         const userData = {
-          phone: cleanPhone,
+          phone: fullPhone,
           full_name: data.name || (mode === 'register' ? name : 'Пользователь'),
           role: data.role || 'USER',
           subscription: data.subscription || 'INACTIVE',
@@ -128,11 +103,10 @@ export const AuthView = () => {
         setView('catalog');
       }
     }, 2000);
-
     return () => clearInterval(interval);
-  }, [step, phoneRaw, code, name, mode, setUser, setView]);
+  }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
-  const displayedPhone = formatDisplay(normalizePhone(phoneRaw));
+  const displayedPhone = fullPhoneDigits ? `+7 ${part1} ${part2} ${part3} ${part4}` : '+7 ___ ___ __ __';
 
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -147,12 +121,12 @@ export const AuthView = () => {
             )}
           </div>
           <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 uppercase italic tracking-tighter">
-            {mode === 'register' ? 'Регистрация' : 'Вход'}
+            {mode === 'register' ? 'Аккаунт' : 'Вход'}
           </h2>
           <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-10">
             {mode === 'register' ? 'Создание профиля' : 'Восстановление доступа'}
           </p>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {mode === 'register' && (
               <input 
                 type="text" 
@@ -163,16 +137,47 @@ export const AuthView = () => {
               />
             )}
             <div>
-              <div className="text-gray-500 text-xs mb-1">Введите 11 цифр номера (начиная с 7):</div>
-              <input 
-                type="tel" 
-                placeholder="77777777777" 
-                className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-2 border-transparent rounded-2xl p-5 text-gray-900 dark:text-white font-bold text-center outline-none focus:border-[#D4AF37]/20 focus:bg-white dark:focus:bg-[#0F0F0F] transition-all text-lg"
-                value={phoneRaw} 
-                onChange={handlePhoneChange}
-              />
-              <div className="text-xs text-gray-400 mt-1">Пример: 7 777 777 77 77</div>
+              <div className="text-gray-500 text-xs mb-2 text-left">Введите номер телефона:</div>
+              <div className="flex items-center gap-1 justify-center flex-wrap">
+                <span className="text-2xl font-bold text-gray-900 dark:text-white mr-1">+7</span>
+                <input
+                  ref={inputRef1}
+                  type="text"
+                  maxLength={3}
+                  className="w-12 sm:w-14 h-12 text-center bg-gray-50 dark:bg-[#1A1A1A] border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold focus:border-[#D4AF37] outline-none"
+                  value={part1}
+                  onChange={(e) => handlePartChange(e.target.value, setPart1, inputRef2)}
+                />
+                <span className="text-xl">-</span>
+                <input
+                  ref={inputRef2}
+                  type="text"
+                  maxLength={3}
+                  className="w-12 sm:w-14 h-12 text-center bg-gray-50 dark:bg-[#1A1A1A] border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold focus:border-[#D4AF37] outline-none"
+                  value={part2}
+                  onChange={(e) => handlePartChange(e.target.value, setPart2, inputRef3)}
+                />
+                <span className="text-xl">-</span>
+                <input
+                  ref={inputRef3}
+                  type="text"
+                  maxLength={2}
+                  className="w-10 sm:w-12 h-12 text-center bg-gray-50 dark:bg-[#1A1A1A] border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold focus:border-[#D4AF37] outline-none"
+                  value={part3}
+                  onChange={(e) => handlePartChange(e.target.value, setPart3, inputRef4)}
+                />
+                <span className="text-xl">-</span>
+                <input
+                  ref={inputRef4}
+                  type="text"
+                  maxLength={2}
+                  className="w-10 sm:w-12 h-12 text-center bg-gray-50 dark:bg-[#1A1A1A] border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold focus:border-[#D4AF37] outline-none"
+                  value={part4}
+                  onChange={(e) => handlePartChange(e.target.value, setPart4)}
+                />
+              </div>
             </div>
+
             <Button 
               fullWidth 
               size="lg" 
@@ -187,7 +192,11 @@ export const AuthView = () => {
               ) : "Продолжить"}
             </Button>
             <button 
-              onClick={() => setMode(mode === 'register' ? 'restore' : 'register')}
+              onClick={() => {
+                setMode(mode === 'register' ? 'restore' : 'register');
+                setName('');
+                setPart1(''); setPart2(''); setPart3(''); setPart4('');
+              }}
               className="text-[10px] text-[#D4AF37] font-black uppercase tracking-widest pt-4 hover:opacity-70 transition-opacity"
             >
               {mode === 'register' ? '✨ У меня уже есть аккаунт' : '👤 Создать новый аккаунт'}
