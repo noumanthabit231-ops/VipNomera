@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Search, ArrowLeft, Send, CheckCircle2, X } from 'lucide-react';
-import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { supabase } from '../supabase';
 import { cn } from '../cn';
@@ -12,6 +11,14 @@ export const OrderNumberView = ({ user, setView, isLight = false }: any) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Нормализуем номер к 10 цифрам
+  const getCleanPhone = (): string => {
+    let phone = user?.phone?.replace(/\D/g, '') || '';
+    if (phone.length === 11 && phone.startsWith('7')) phone = phone.slice(1);
+    if (phone.length > 10) phone = phone.slice(-10);
+    return phone;
+  };
+
   const handleSubmit = async () => {
     if (!desiredNumber.trim()) {
       setError('Введите желаемый номер');
@@ -20,7 +27,7 @@ export const OrderNumberView = ({ user, setView, isLight = false }: any) => {
     setError('');
     setLoading(true);
     
-    const cleanPhone = user?.phone?.replace(/\D/g, '') || '';
+    const cleanPhone = getCleanPhone();
     
     const { error: supabaseError } = await supabase.from('custom_orders').insert([{
       user_phone: cleanPhone,
@@ -44,13 +51,15 @@ export const OrderNumberView = ({ user, setView, isLight = false }: any) => {
     setView('catalog');
   };
 
-  // Стили для тем
   const bgClass = isLight ? 'bg-[#F4F4F6]' : 'bg-[#050505]';
   const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-[#0F0F0F] border-gray-800';
   const textPrimaryClass = isLight ? 'text-black' : 'text-white';
   const textSecondaryClass = isLight ? 'text-gray-500' : 'text-gray-400';
   const inputBgClass = isLight ? 'bg-gray-50 border-gray-200' : 'bg-[#1A1A1A] border-gray-800';
   const inputTextClass = isLight ? 'text-gray-900' : 'text-white';
+
+  const cleanPhoneForDisplay = getCleanPhone();
+  const displayPhone = cleanPhoneForDisplay ? `+${cleanPhoneForDisplay}` : '';
 
   if (isSubmitted) {
     return (
@@ -61,7 +70,7 @@ export const OrderNumberView = ({ user, setView, isLight = false }: any) => {
           </div>
           <h2 className={cn("text-3xl font-black italic uppercase tracking-tighter mb-4", textPrimaryClass)}>Заявка принята</h2>
           <p className={cn("text-sm font-bold mb-8", textSecondaryClass)}>
-            Мы начнем поиск номера <span className="text-[#D4AF37]">{desiredNumber}</span> и свяжемся с вами по номеру <strong>+{user?.phone?.replace(/\D/g, '')}</strong>
+            Мы начнем поиск номера <span className="text-[#D4AF37]">{desiredNumber}</span> и свяжемся с вами по номеру <strong>{displayPhone}</strong>
           </p>
           <Button fullWidth onClick={handleClose} className="py-5">
             Вернуться в каталог
@@ -73,7 +82,6 @@ export const OrderNumberView = ({ user, setView, isLight = false }: any) => {
 
   return (
     <div className={cn("min-h-screen pt-6 pb-24 px-4 animate-in slide-in-from-bottom-4", bgClass)}>
-      {/* Header with close button */}
       <div className="flex items-center justify-between mb-6">
         <button 
           onClick={() => setView('catalog')} 
@@ -97,7 +105,6 @@ export const OrderNumberView = ({ user, setView, isLight = false }: any) => {
       <div className="max-w-sm mx-auto">
         <div className={cn("rounded-3xl border shadow-xl overflow-hidden", cardBgClass)}>
           <div className="p-6 space-y-6">
-            {/* Icon */}
             <div className="flex justify-center">
               <div className="w-16 h-16 bg-[#D4AF37]/10 rounded-2xl flex items-center justify-center border border-[#D4AF37]/20">
                 <Search size={28} className="text-[#D4AF37]" />
@@ -146,7 +153,7 @@ export const OrderNumberView = ({ user, setView, isLight = false }: any) => {
 
               <div className="pt-2">
                 <p className={cn("text-[9px] font-bold text-center mb-4", textSecondaryClass)}>
-                  Свяжемся с вами по номеру: <span className="text-[#D4AF37]">+{user?.phone?.replace(/\D/g, '')}</span>
+                  Свяжемся с вами по номеру: <span className="text-[#D4AF37]">{displayPhone}</span>
                 </p>
                 <Button 
                   fullWidth 
