@@ -110,17 +110,17 @@ export const AuthView = () => {
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
-  const inputBaseClass = cn(
-    "w-12 sm:w-14 h-12 text-center rounded-xl text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50",
-    isLight 
-      ? "bg-gray-100 text-gray-900 border border-gray-300 focus:border-[#D4AF37]" 
-      : "bg-[#1A1A1A] text-white border border-gray-700 focus:border-[#D4AF37]"
+  const inputClass = cn(
+    "w-12 sm:w-14 h-12 text-center rounded-xl text-lg font-bold transition-all focus:ring-2 focus:ring-[#D4AF37]/50 outline-none",
+    isLight
+      ? "bg-gray-100 text-gray-900 border border-gray-300 focus:border-[#D4AF37]"
+      : "bg-[#1A1A1A] text-white border border-gray-600 focus:border-[#D4AF37]"
   );
 
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
       {step === 'phone' ? (
-        <Card className="p-8 shadow-2xl relative overflow-hidden bg-white dark:bg-[#0F0F0F] dark:border-white/5">
+        <Card className="p-8 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#D4AF37]/30" />
           <div className="w-16 h-16 bg-gray-50 dark:bg-[#1A1A1A] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-gray-100 dark:border-gray-800 shadow-inner">
             {mode === 'register' ? (
@@ -142,9 +142,9 @@ export const AuthView = () => {
                 placeholder="Ваше имя" 
                 className={cn(
                   "w-full rounded-2xl p-4 text-center text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50",
-                  isLight 
-                    ? "bg-gray-100 text-gray-900 border border-gray-300" 
-                    : "bg-[#1A1A1A] text-white border border-gray-700"
+                  isLight
+                    ? "bg-gray-100 text-gray-900 border border-gray-300"
+                    : "bg-[#1A1A1A] text-white border border-gray-600"
                 )}
                 value={name} 
                 onChange={(e) => setName(e.target.value)}
@@ -152,13 +152,13 @@ export const AuthView = () => {
             )}
             <div>
               <div className="text-gray-500 text-xs mb-2 text-left">Введите номер телефона:</div>
-              <div className="flex items-center justify-center gap-1 flex-wrap">
+              <div className="flex items-center justify-center gap-2 flex-wrap">
                 <span className={cn("text-2xl font-bold mr-1", isLight ? "text-gray-900" : "text-white")}>+7</span>
                 <input
                   ref={inputRef1}
                   type="text"
                   maxLength={3}
-                  className={inputBaseClass}
+                  className={inputClass}
                   value={part1}
                   onChange={(e) => handlePartChange(e.target.value, setPart1, inputRef2)}
                 />
@@ -167,7 +167,7 @@ export const AuthView = () => {
                   ref={inputRef2}
                   type="text"
                   maxLength={3}
-                  className={inputBaseClass}
+                  className={inputClass}
                   value={part2}
                   onChange={(e) => handlePartChange(e.target.value, setPart2, inputRef3)}
                 />
@@ -176,7 +176,7 @@ export const AuthView = () => {
                   ref={inputRef3}
                   type="text"
                   maxLength={2}
-                  className={inputBaseClass}
+                  className={inputClass}
                   value={part3}
                   onChange={(e) => handlePartChange(e.target.value, setPart3, inputRef4)}
                 />
@@ -185,13 +185,12 @@ export const AuthView = () => {
                   ref={inputRef4}
                   type="text"
                   maxLength={2}
-                  className={inputBaseClass}
+                  className={inputClass}
                   value={part4}
                   onChange={(e) => handlePartChange(e.target.value, setPart4)}
                 />
               </div>
             </div>
-
             <Button 
               fullWidth 
               size="lg" 
@@ -199,11 +198,7 @@ export const AuthView = () => {
               disabled={loading} 
               onClick={handleStartAuth}
             >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 size={18} className="animate-spin" /> Загрузка...
-                </div>
-              ) : "Продолжить"}
+              {loading ? <Loader2 size={18} className="animate-spin" /> : "Продолжить"}
             </Button>
             <button 
               onClick={() => {
@@ -219,14 +214,12 @@ export const AuthView = () => {
         </Card>
       ) : (
         <div className="space-y-6">
-          <Card className="p-8 border-[#D4AF37]/30 shadow-2xl relative overflow-hidden bg-white dark:bg-[#0F0F0F]">
+          <Card className="p-8 border-[#D4AF37]/30 shadow-2xl relative overflow-hidden">
             <div className="w-16 h-16 bg-[#2AABEE]/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-[#2AABEE]/20">
               <MessageSquare className="text-[#2AABEE]" size={28} />
             </div>
             <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1 uppercase italic tracking-tighter">Остался 1 шаг</h2>
-            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-8">
-              {displayedPhone}
-            </p>
+            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-8">{displayedPhone}</p>
             <div className="bg-gray-50 dark:bg-[#1A1A1A] rounded-[2rem] p-6 mb-8 border border-gray-100 dark:border-gray-800 shadow-inner">
               <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
                 Перейдите в Telegram и нажмите кнопку <br/><span className="text-gray-900 dark:text-white">«📱 Подтвердить номер»</span>
