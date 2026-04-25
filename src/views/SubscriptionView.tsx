@@ -13,7 +13,6 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
   const handlePaidNotification = async () => {
     if (sent) return;
     setLoading(true);
-    
     try {
       const success = await onNotify();
       if (success) {
@@ -42,7 +41,6 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
 
       <Card className="p-8 border-[#D4AF37]/20 relative overflow-hidden bg-white">
         <div className="absolute -right-10 -top-10 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-3xl" />
-        
         <div className="space-y-8 relative z-10">
           <div className="flex justify-between items-end">
             <div>
@@ -53,7 +51,7 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
               <h3 className="text-3xl font-black text-gray-900 italic">30 Дней</h3>
             </div>
             <div className="text-right">
-              <p className="text-4xl font-black text-[#D4AF37] leading-none">5 000 ₸</p>
+              <p className="text-4xl font-black text-[#D4AF37] leading-none">3 500 ₸</p>
               <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 text-right">в месяц</p>
             </div>
           </div>
