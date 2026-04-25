@@ -29,32 +29,41 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
 
-  // --- АВТООБНОВЛЕНИЕ СТАТУСА VIP (при возврате на страницу) ---
-  useEffect(() => {
-    const refreshUserStatus = async () => {
-      if (!user?.phone) return;
-      const cleanPhone = user.phone.replace(/\D/g, '');
-      const { data, error } = await supabase
-        .from('auth_codes')
-        .select('subscription, expiry_date, role')
-        .eq('phone', cleanPhone)
-        .single();
-      if (data && !error) {
-        // Если статус изменился (например, с INACTIVE на ACTIVE)
-        if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
-          setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
-        }
+  // Функция обновления статуса из базы
+  const refreshUserStatus = async () => {
+    if (!user?.phone) return;
+    const cleanPhone = user.phone.replace(/\D/g, '');
+    const { data, error } = await supabase
+      .from('auth_codes')
+      .select('subscription, expiry_date, role')
+      .eq('phone', cleanPhone)
+      .maybeSingle();
+    if (data && !error) {
+      if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
+        setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
+        return true;
       }
-    };
+    }
+    return false;
+  };
 
+  // Автообновление при загрузке и при возвращении на вкладку
+  useEffect(() => {
     refreshUserStatus();
-    // Дополнительно: обновляем при возвращении на вкладку браузера
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') refreshUserStatus();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user?.phone, user?.subscription, user?.expiry_date, setUser]);
+  }, [user?.phone]);
+
+  // Ручное обновление
+  const handleManualRefresh = async () => {
+    const updated = await refreshUserStatus();
+    if (updated) alert('Статус обновлён!');
+    else if (user?.subscription === 'ACTIVE') alert('VIP уже активен. Если интерфейс не изменился, перезагрузите страницу (F5).');
+    else alert('VIP не активен.');
+  };
 
   const isAdmin = user?.role === 'ADMIN';
   const isVIP = user?.subscription === 'ACTIVE' || isAdmin;
@@ -100,7 +109,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
           })
         });
         const data = await res.json();
-        console.log('Telegram send result:', data);
         if (data.ok) success = true;
       } catch (err) {
         console.error(err);
@@ -271,7 +279,14 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
         )}
       </div>
 
-      <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-4 text-gray-500 hover:text-red-500 transition-colors font-bold text-xs uppercase tracking-widest">
+      <button
+        onClick={handleManualRefresh}
+        className="w-full flex items-center justify-center gap-2 py-3 mt-2 bg-gray-500/20 rounded-xl text-[11px] font-black uppercase transition-all hover:bg-gray-500/30"
+      >
+        🔄 Обновить статус VIP
+      </button>
+
+      <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-4 mt-2 text-gray-500 hover:text-red-500 transition-colors font-bold text-xs uppercase tracking-widest">
         <LogOut size={16} /> Выйти из аккаунта
       </button>
     </div>
