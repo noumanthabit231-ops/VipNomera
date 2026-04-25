@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Crown, ShieldCheck, Lock, LogOut, 
   ChevronLeft, Star, Clock, CheckCircle2,
   Settings, User as UserIcon, ChevronDown, CreditCard, MessageCircle
 } from 'lucide-react';
 import { cn } from '../cn';
+import { supabase } from '../supabase';
 
 const getDaysDiff = (expiryStr: string) => {
   if (!expiryStr) return null;
@@ -27,6 +28,33 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
+
+  // --- АВТООБНОВЛЕНИЕ СТАТУСА VIP (при возврате на страницу) ---
+  useEffect(() => {
+    const refreshUserStatus = async () => {
+      if (!user?.phone) return;
+      const cleanPhone = user.phone.replace(/\D/g, '');
+      const { data, error } = await supabase
+        .from('auth_codes')
+        .select('subscription, expiry_date, role')
+        .eq('phone', cleanPhone)
+        .single();
+      if (data && !error) {
+        // Если статус изменился (например, с INACTIVE на ACTIVE)
+        if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
+          setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
+        }
+      }
+    };
+
+    refreshUserStatus();
+    // Дополнительно: обновляем при возвращении на вкладку браузера
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshUserStatus();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user?.phone, user?.subscription, user?.expiry_date, setUser]);
 
   const isAdmin = user?.role === 'ADMIN';
   const isVIP = user?.subscription === 'ACTIVE' || isAdmin;
