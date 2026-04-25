@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, ExternalLink, Smartphone, ArrowLeft, RefreshCcw, Loader2 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
 import { useGoldenApp } from '../hooks/useGoldenApp';
 import { cn } from '../cn';
 
@@ -24,10 +23,11 @@ export const AuthView = () => {
   const inputRef3 = useRef<HTMLInputElement>(null);
   const inputRef4 = useRef<HTMLInputElement>(null);
 
-  const getPhone11 = () => {
+  // Возвращает ровно 10 цифр (без +7)
+  const getPhone10 = () => {
     const digits = part1 + part2 + part3 + part4;
     if (digits.length !== 10) return null;
-    return '7' + digits;
+    return digits;
   };
 
   const getDisplayPhone = () => {
@@ -47,8 +47,8 @@ export const AuthView = () => {
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleStartAuth = async () => {
-    const phone11 = getPhone11();
-    if (!phone11) {
+    const phone10 = getPhone10();
+    if (!phone10) {
       alert('Введите 10 цифр номера');
       return;
     }
@@ -63,15 +63,16 @@ export const AuthView = () => {
     if (mode === 'register') {
       const { error } = await supabase
         .from('auth_codes')
-        .insert([{ phone: phone11, code: sessionToken, is_verified: false, name: name.trim() }]);
+        .insert([{ phone: phone10, code: sessionToken, is_verified: false, name: name.trim() }]);
       setLoading(false);
       if (!error) setStep('verify');
       else alert('Ошибка при регистрации: ' + error.message);
     } else {
+      // Восстановление: обновляем код для существующего номера (10 цифр)
       const { error } = await supabase
         .from('auth_codes')
         .update({ code: sessionToken, is_verified: false })
-        .eq('phone', phone11);
+        .eq('phone', phone10);
       setLoading(false);
       if (!error) setStep('verify');
       else alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
@@ -80,19 +81,19 @@ export const AuthView = () => {
 
   useEffect(() => {
     if (step !== 'verify') return;
-    const phone11 = getPhone11();
-    if (!phone11) return;
+    const phone10 = getPhone10();
+    if (!phone10) return;
     const interval = setInterval(async () => {
       const { data, error } = await supabase
         .from('auth_codes')
         .select('is_verified, name, role, subscription, expiry_date, tg_user_id')
-        .eq('phone', phone11)
+        .eq('phone', phone10)
         .eq('code', code)
         .single();
       if (data?.is_verified) {
         clearInterval(interval);
         setUser({
-          phone: phone11,
+          phone: phone10, // 10 цифр
           full_name: data.name || (mode === 'register' ? name : 'Пользователь'),
           role: data.role || 'USER',
           subscription: data.subscription || 'INACTIVE',
