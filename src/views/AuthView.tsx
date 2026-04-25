@@ -106,7 +106,8 @@ export const AuthView = () => {
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
-  const displayedPhone = fullPhoneDigits ? `+7 ${part1} ${part2} ${part3} ${part4}` : '+7 ___ ___ __ __';
+  const fullDigits = getFullPhoneDigits();
+const displayedPhone = fullDigits ? `+7 ${part1} ${part2} ${part3} ${part4}` : '+7 ___ ___ __ __';
 
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
