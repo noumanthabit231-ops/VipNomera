@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Crown, ShieldCheck, Lock, LogOut, 
   ChevronLeft, Star, Clock, CheckCircle2,
@@ -24,10 +24,9 @@ const getDaysDiff = (expiryStr: string) => {
   return { count: diffDays, word: getWord(Math.abs(diffDays)) };
 };
 
-// Функция для нормализации номера (только цифры, начинается с 7)
 const normalizePhoneForLink = (phone: string) => {
   let digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('7') && digits.length === 11) digits = digits.slice(1); // убираем лишнюю 7, если есть
+  if (digits.startsWith('7') && digits.length === 11) digits = digits.slice(1);
   if (!digits.startsWith('7')) digits = '7' + digits;
   if (digits.length > 11) digits = digits.slice(0, 11);
   return digits;
@@ -38,8 +37,9 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
 
+  // Ручное обновление статуса (по кнопке)
   const refreshUserStatus = async () => {
-    if (!user?.phone) return false;
+    if (!user?.phone) return;
     const cleanPhone = user.phone.replace(/\D/g, '');
     const { data, error } = await supabase
       .from('auth_codes')
@@ -49,26 +49,15 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     if (data && !error) {
       if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
         setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
-        return true;
+        alert('✅ Статус обновлён!');
+      } else if (data.subscription === 'ACTIVE') {
+        alert('VIP уже активен. Если интерфейс не изменился, перезагрузите страницу (F5).');
+      } else {
+        alert('VIP не активен.');
       }
+    } else {
+      alert('Ошибка получения статуса.');
     }
-    return false;
-  };
-
-  useEffect(() => {
-    refreshUserStatus();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refreshUserStatus();
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user?.phone]);
-
-  const handleManualRefresh = async () => {
-    const updated = await refreshUserStatus();
-    if (updated) alert('Статус обновлён!');
-    else if (user?.subscription === 'ACTIVE') alert('VIP уже активен. Если интерфейс не изменился, перезагрузите страницу (F5).');
-    else alert('VIP не активен.');
   };
 
   const isAdmin = user?.role === 'ADMIN';
@@ -84,7 +73,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     if (!cleanPhone.startsWith('7')) cleanPhone = '7' + cleanPhone;
 
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
-    
     const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${cleanPhone}`;
     const contactUrl = `https://t.me/+${cleanPhone}`;
     
@@ -143,7 +131,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     }
   };
 
-  // Кнопка связи с менеджером (WhatsApp) – будет только внутри шторки
   const contactManager = () => {
     window.open('https://wa.me/77077977767', '_blank');
   };
@@ -251,7 +238,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               <CreditCard size={18} /> Оплатить через Kaspi
             </a>
 
-            {/* Кнопка "Я оплатил" – теперь всегда видна, не в шторке */}
             <button 
               onClick={handleBuyVip}
               disabled={isSending || isSent}
@@ -263,7 +249,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               {isSending ? <span className="animate-pulse">Отправка...</span> : isSent ? <><CheckCircle2 size={16} /> Заявка у администратора</> : <><CheckCircle2 size={16} className="text-black" /> Я оплатил</>}
             </button>
 
-            {/* Шторка "Что делать после оплаты?" – теперь только инструкции и кнопка "Связаться с менеджером" */}
             <button 
               onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
               className="w-full flex items-center justify-between p-4 bg-[#111] border border-gray-800 rounded-2xl relative z-10 text-gray-400 hover:text-white transition-colors"
@@ -279,7 +264,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
                   <li>После успешного перевода нажмите кнопку <b className="text-white">«Я оплатил»</b>.</li>
                   <li>Ожидайте проверки. Администратор моментально активирует ваш VIP статус.</li>
                 </ol>
-                {/* Кнопка "Связаться с менеджером" – только внутри шторки */}
                 <button 
                   onClick={contactManager}
                   className="w-full flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#20b859] text-white rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-md active:scale-95"
@@ -293,7 +277,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
       </div>
 
       <button
-        onClick={handleManualRefresh}
+        onClick={refreshUserStatus}
         className="w-full flex items-center justify-center gap-2 py-3 mt-2 bg-gray-500/20 rounded-xl text-[11px] font-black uppercase transition-all hover:bg-gray-500/30"
       >
         🔄 Обновить статус VIP
