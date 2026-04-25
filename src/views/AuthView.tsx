@@ -4,17 +4,18 @@ import { supabase } from '../supabase';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useGoldenApp } from '../hooks/useGoldenApp';
+import { cn } from '../cn';
 
 const BOT_USERNAME = "vipvipnumbers_bot";
 
 export const AuthView = () => {
-  const { setUser, setView } = useGoldenApp();
+  const { setUser, setView, isLight } = useGoldenApp();
   const [mode, setMode] = useState<'register' | 'restore'>('register');
   const [name, setName] = useState('');
-  const [part1, setPart1] = useState(''); // 3 цифры
-  const [part2, setPart2] = useState(''); // 3 цифры
-  const [part3, setPart3] = useState(''); // 2 цифры
-  const [part4, setPart4] = useState(''); // 2 цифры
+  const [part1, setPart1] = useState('');
+  const [part2, setPart2] = useState('');
+  const [part3, setPart3] = useState('');
+  const [part4, setPart4] = useState('');
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,8 +28,12 @@ export const AuthView = () => {
   const getFullPhoneDigits = () => {
     const digits = part1 + part2 + part3 + part4;
     if (digits.length !== 10) return null;
-    return '7' + digits; // 11 цифр для БД
+    return '7' + digits;
   };
+
+  const displayedPhone = getFullPhoneDigits() 
+    ? `+7 ${part1} ${part2} ${part3} ${part4}` 
+    : '+7 ___ ___ __ __';
 
   const handlePartChange = (value: string, setter: React.Dispatch<React.SetStateAction<string>>, nextRef?: React.RefObject<HTMLInputElement>) => {
     const digits = value.replace(/\D/g, '');
@@ -67,7 +72,6 @@ export const AuthView = () => {
       if (!error) setStep('verify');
       else alert("Ошибка при регистрации: " + error.message);
     } else {
-      // Режим входа – обновляем существующую запись
       const { error } = await supabase
         .from('auth_codes')
         .update({ code: sessionToken, is_verified: false })
@@ -106,13 +110,17 @@ export const AuthView = () => {
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
-  const fullDigits = getFullPhoneDigits();
-const displayedPhone = fullDigits ? `+7 ${part1} ${part2} ${part3} ${part4}` : '+7 ___ ___ __ __';
+  const inputBaseClass = cn(
+    "w-12 sm:w-14 h-12 text-center rounded-xl text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50",
+    isLight 
+      ? "bg-gray-100 text-gray-900 border border-gray-300 focus:border-[#D4AF37]" 
+      : "bg-[#1A1A1A] text-white border border-gray-700 focus:border-[#D4AF37]"
+  );
 
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
       {step === 'phone' ? (
-        <Card className="p-10 shadow-2xl relative overflow-hidden bg-white dark:bg-[#0F0F0F] dark:border-white/5">
+        <Card className="p-8 shadow-2xl relative overflow-hidden bg-white dark:bg-[#0F0F0F] dark:border-white/5">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#D4AF37]/30" />
           <div className="w-16 h-16 bg-gray-50 dark:bg-[#1A1A1A] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-gray-100 dark:border-gray-800 shadow-inner">
             {mode === 'register' ? (
@@ -124,7 +132,7 @@ const displayedPhone = fullDigits ? `+7 ${part1} ${part2} ${part3} ${part4}` : '
           <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 uppercase italic tracking-tighter">
             {mode === 'register' ? 'Аккаунт' : 'Вход'}
           </h2>
-          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-10">
+          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-8">
             {mode === 'register' ? 'Создание профиля' : 'Восстановление доступа'}
           </p>
           <div className="space-y-6">
@@ -132,47 +140,52 @@ const displayedPhone = fullDigits ? `+7 ${part1} ${part2} ${part3} ${part4}` : '
               <input 
                 type="text" 
                 placeholder="Ваше имя" 
-                className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-2 border-transparent rounded-2xl p-5 text-gray-900 dark:text-white font-bold text-center outline-none focus:border-[#D4AF37]/20 focus:bg-white dark:focus:bg-[#0F0F0F] transition-all text-lg"
+                className={cn(
+                  "w-full rounded-2xl p-4 text-center text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50",
+                  isLight 
+                    ? "bg-gray-100 text-gray-900 border border-gray-300" 
+                    : "bg-[#1A1A1A] text-white border border-gray-700"
+                )}
                 value={name} 
                 onChange={(e) => setName(e.target.value)}
               />
             )}
             <div>
               <div className="text-gray-500 text-xs mb-2 text-left">Введите номер телефона:</div>
-              <div className="flex items-center gap-1 justify-center flex-wrap">
-                <span className="text-2xl font-bold text-gray-900 dark:text-white mr-1">+7</span>
+              <div className="flex items-center justify-center gap-1 flex-wrap">
+                <span className={cn("text-2xl font-bold mr-1", isLight ? "text-gray-900" : "text-white")}>+7</span>
                 <input
                   ref={inputRef1}
                   type="text"
                   maxLength={3}
-                  className="w-12 sm:w-14 h-12 text-center bg-gray-50 dark:bg-[#1A1A1A] border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold focus:border-[#D4AF37] outline-none"
+                  className={inputBaseClass}
                   value={part1}
                   onChange={(e) => handlePartChange(e.target.value, setPart1, inputRef2)}
                 />
-                <span className="text-xl">-</span>
+                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-500")}>-</span>
                 <input
                   ref={inputRef2}
                   type="text"
                   maxLength={3}
-                  className="w-12 sm:w-14 h-12 text-center bg-gray-50 dark:bg-[#1A1A1A] border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold focus:border-[#D4AF37] outline-none"
+                  className={inputBaseClass}
                   value={part2}
                   onChange={(e) => handlePartChange(e.target.value, setPart2, inputRef3)}
                 />
-                <span className="text-xl">-</span>
+                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-500")}>-</span>
                 <input
                   ref={inputRef3}
                   type="text"
                   maxLength={2}
-                  className="w-10 sm:w-12 h-12 text-center bg-gray-50 dark:bg-[#1A1A1A] border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold focus:border-[#D4AF37] outline-none"
+                  className={inputBaseClass}
                   value={part3}
                   onChange={(e) => handlePartChange(e.target.value, setPart3, inputRef4)}
                 />
-                <span className="text-xl">-</span>
+                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-500")}>-</span>
                 <input
                   ref={inputRef4}
                   type="text"
                   maxLength={2}
-                  className="w-10 sm:w-12 h-12 text-center bg-gray-50 dark:bg-[#1A1A1A] border border-gray-300 dark:border-gray-700 rounded-xl text-lg font-bold focus:border-[#D4AF37] outline-none"
+                  className={inputBaseClass}
                   value={part4}
                   onChange={(e) => handlePartChange(e.target.value, setPart4)}
                 />
@@ -206,7 +219,7 @@ const displayedPhone = fullDigits ? `+7 ${part1} ${part2} ${part3} ${part4}` : '
         </Card>
       ) : (
         <div className="space-y-6">
-          <Card className="p-10 border-[#D4AF37]/30 shadow-2xl relative overflow-hidden bg-white dark:bg-[#0F0F0F]">
+          <Card className="p-8 border-[#D4AF37]/30 shadow-2xl relative overflow-hidden bg-white dark:bg-[#0F0F0F]">
             <div className="w-16 h-16 bg-[#2AABEE]/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-[#2AABEE]/20">
               <MessageSquare className="text-[#2AABEE]" size={28} />
             </div>
