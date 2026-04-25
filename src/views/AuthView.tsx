@@ -19,7 +19,6 @@ export const AuthView = () => {
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-
   const inputRef1 = useRef<HTMLInputElement>(null);
   const inputRef2 = useRef<HTMLInputElement>(null);
   const inputRef3 = useRef<HTMLInputElement>(null);
@@ -106,12 +105,12 @@ export const AuthView = () => {
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
-  const cardBg = isLight ? 'bg-white' : 'bg-[#0f0f0f]';
+  const cardBg = isLight ? 'bg-white' : 'bg-[#0F0F0F]';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
-  const inputBg = isLight ? 'bg-gray-100' : 'bg-[#1a1a1a]';
+  const inputBg = isLight ? 'bg-gray-100' : 'bg-[#1A1A1A]';
   const inputBorder = isLight ? 'border-gray-300' : 'border-gray-700';
-  const iconBg = isLight ? 'bg-gray-100' : 'bg-[#1a1a1a]';
+  const iconBg = isLight ? 'bg-gray-100' : 'bg-[#1A1A1A]';
   const iconBorder = isLight ? 'border-gray-200' : 'border-gray-800';
   const titleClass = cn("text-3xl font-black uppercase italic tracking-tighter", textPrimary);
   const subtitleClass = cn("text-[10px] font-bold uppercase tracking-[0.2em]", textSecondary);
