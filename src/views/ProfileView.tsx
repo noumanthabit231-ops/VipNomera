@@ -37,12 +37,11 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [localVIP, setLocalVIP] = useState(user?.subscription === 'ACTIVE');
 
   const getPhoneDigits = (): string => {
-    if (!user?.phone) return '';
-    let digits = user.phone.replace(/\D/g, '');
-    if (digits.length === 10) digits = '7' + digits;
-    if (digits.length !== 11) digits = '7' + digits.slice(-10);
-    return digits;
-  };
+  if (!user?.phone) return '';
+  let digits = user.phone.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('7')) digits = digits.slice(1);
+  return digits;
+};
 
   const refreshUserStatus = async () => {
     const digits = getPhoneDigits();
