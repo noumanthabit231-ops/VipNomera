@@ -127,7 +127,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     setIsSending(false);
     if (success) {
       setIsSent(true);
-      setTimeout(() => setIsSent(false), 5000);
+      setTimeout(() => setIsSent(false), 3500);
     } else {
       alert("Ошибка отправки. Попробуйте позже.");
     }
