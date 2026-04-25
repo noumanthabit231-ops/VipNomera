@@ -73,38 +73,37 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
   const sendPaymentNotification = async () => {
-    const digits = getPhoneDigits();
-    if (!digits) return false;
+  const digits = getPhoneDigits();
+  if (!digits) return false;
 
-    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
-    const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
-    const contactUrl = `https://t.me/+${digits}`; // Telegram принимает номер как +777...
-    const replyMarkup = {
-      inline_keyboard: [[
-        { text: "✅ Подтвердить VIP", url: vipConfirmUrl },
-        { text: "📞 Связаться", url: contactUrl }
-      ]]
-    };
-    const targets = [
-      { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
-      { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
-    ];
-    let success = false;
-    for (const { token, chatId } of targets) {
-      if (!token || !chatId) continue;
-      try {
-        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown', reply_markup })
-        });
-        const data = await res.json();
-        if (data.ok) success = true;
-      } catch (err) { console.error(err); }
-    }
-    return success;
+  const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+  const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
+  const contactUrl = `https://t.me/+${digits}`;
+  const reply_markup = {  // <-- ИСПРАВЛЕНО: переменная называется reply_markup
+    inline_keyboard: [[
+      { text: "✅ Подтвердить VIP", url: vipConfirmUrl },
+      { text: "📞 Связаться", url: contactUrl }
+    ]]
   };
-
+  const targets = [
+    { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
+    { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
+  ];
+  let success = false;
+  for (const { token, chatId } of targets) {
+    if (!token || !chatId) continue;
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown', reply_markup })
+      });
+      const data = await res.json();
+      if (data.ok) success = true;
+    } catch (err) { console.error(err); }
+  }
+  return success;
+};
   const handleLogout = () => {
     localStorage.removeItem('golden_v2_session');
     setUser(null);
