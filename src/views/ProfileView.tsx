@@ -38,31 +38,27 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
 
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
-  // Данные для двух ботов (основной и дополнительный)
+  // Токены ботов (основной и дополнительный) – фильтруем пустые
   const tgTokens = [
     { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
     { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
-  ];
+  ].filter(t => t.token && t.chatId);
 
   // Отправка уведомления с инлайн-кнопкой в Telegram
   const sendPaymentNotification = async () => {
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
     
-    // Inline-клавиатура с кнопкой подтверждения
+    // Простая строка в callback_data
+    const callbackData = `confirm_${user?.phone}`;
+    
     const keyboard = {
-      inline_keyboard: [
-        [
-          {
-            text: "✅ Подтвердить VIP",
-            callback_data: JSON.stringify({ action: 'confirm', userPhone: user?.phone })
-          }
-        ]
-      ]
+      inline_keyboard: [[{ text: "✅ Подтвердить VIP", callback_data: callbackData }]]
     };
 
+    console.log('Отправка в чаты:', tgTokens);
+    
     const results = await Promise.all(
       tgTokens.map(async ({ token, chatId }) => {
-        if (!token || !chatId) return false;
         try {
           const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
             method: 'POST',
@@ -71,11 +67,14 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               chat_id: chatId,
               text,
               parse_mode: 'Markdown',
-              reply_markup: keyboard,
+              reply_markup: keyboard
             }),
           });
+          const data = await res.json();
+          console.log('Ответ Telegram:', data);
           return res.ok;
-        } catch {
+        } catch (err) {
+          console.error('Ошибка отправки:', err);
           return false;
         }
       })
