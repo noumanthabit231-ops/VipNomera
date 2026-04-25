@@ -7,6 +7,12 @@ import {
 import { cn } from '../cn';
 import { supabase } from '../supabase';
 
+const formatPhoneDisplay = (phoneDigits: string): string => {
+  if (!phoneDigits) return '';
+  const d = phoneDigits.slice(0, 10);
+  return `+7 ${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
+};
+
 const getDaysDiff = (expiryStr: string) => {
   if (!expiryStr) return null;
   const today = new Date();
@@ -29,22 +35,28 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
 
+  const getPhoneDigits = (): string => {
+    if (!user?.phone) return '';
+    let digits = user.phone.replace(/\D/g, '');
+    if (digits.startsWith('7') && digits.length === 11) digits = digits.slice(1);
+    if (digits.length > 10) digits = digits.slice(-10);
+    return digits;
+  };
+
   const refreshUserStatus = async () => {
-    if (!user?.phone) return;
-    let cleanPhone = user.phone.replace(/\D/g, '');
-    // Приводим к 10 цифрам (убираем ведущую 7, если есть)
-    if (cleanPhone.startsWith('7') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
+    const digits = getPhoneDigits();
+    if (!digits) return;
     const { data, error } = await supabase
       .from('auth_codes')
       .select('subscription, expiry_date, role')
-      .eq('phone', cleanPhone)
+      .eq('phone', digits)
       .maybeSingle();
     if (data && !error) {
       if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
         setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
         alert('✅ Статус обновлён!');
       } else if (data.subscription === 'ACTIVE') {
-        alert('VIP уже активен.');
+        alert('VIP уже активен. Если интерфейс не изменился, перезагрузите страницу (F5).');
       } else {
         alert('VIP не активен.');
       }
@@ -56,24 +68,18 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const isAdmin = user?.role === 'ADMIN';
   const isVIP = user?.subscription === 'ACTIVE' || isAdmin;
   const daysLeft = getDaysDiff(user?.expiry_date);
+  const displayPhone = formatPhoneDisplay(getPhoneDigits());
 
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
   const sendPaymentNotification = async () => {
-    if (!user?.phone) return false;
-    let cleanPhone = user.phone.replace(/\D/g, '');
-    // Приводим к 10 цифрам (то, что хранится в БД)
-    if (cleanPhone.startsWith('7') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
-    if (cleanPhone.length !== 10) {
-      console.error('Некорректный номер:', cleanPhone);
-      alert('Номер телефона должен содержать 10 цифр после кода страны');
-      return false;
-    }
+    const digits = getPhoneDigits();
+    if (!digits) return false;
 
-    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${cleanPhone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
     
-    const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${cleanPhone}`;
-    const contactUrl = `https://t.me/+7${cleanPhone}`; // для открытия чата с клиентом
+    const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
+    const contactUrl = `https://t.me/+7${digits}`;
     
     const replyMarkup = {
       inline_keyboard: [
@@ -160,7 +166,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
           )}
         </div>
         <h2 className={cn("text-2xl font-black tracking-tight", textPrimaryClass)}>{user?.full_name || 'Аноним'}</h2>
-        <p className="text-[#D4AF37] font-bold text-sm tracking-[0.2em] uppercase mt-1">+{user?.phone}</p>
+        <p className="text-[#D4AF37] font-bold text-sm tracking-[0.2em] uppercase mt-1">{displayPhone}</p>
       </div>
 
       <div className="mb-8">
