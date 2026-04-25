@@ -58,65 +58,52 @@ export const AuthView = () => {
     const sessionToken = generateSessionToken();
     setCode(sessionToken);
 
-    // Ищем существующую запись для этого номера
-    const { data: existing, error: fetchError } = await supabase
-      .from('auth_codes')
-      .select('id, is_verified, name, subscription, expiry_date, role')
-      .eq('phone', phone10)
-      .maybeSingle();
+    // 1. Удаляем старые неверифицированные записи для этого номера
+    await supabase.from('auth_codes').delete().eq('phone', phone10).eq('is_verified', false);
 
-    if (mode === 'register') {
-      // Регистрация нового пользователя
-      if (existing && existing.is_verified) {
-        setLoading(false);
-        alert('Этот номер уже зарегистрирован. Пожалуйста, войдите через "У меня уже есть аккаунт".');
-        return;
-      }
-      // Если есть неверифицированная запись – удалим её (чтобы создать новую)
-      if (existing && !existing.is_verified) {
-        await supabase.from('auth_codes').delete().eq('id', existing.id);
-      }
-      const { error } = await supabase.from('auth_codes').insert([{
-        phone: phone10,
-        code: sessionToken,
-        is_verified: false,
-        name: name.trim(),
-      }]);
-      setLoading(false);
-      if (!error) setStep('verify');
-      else alert('Ошибка при регистрации: ' + error.message);
-    } else {
-      // Восстановление доступа – обновляем существующую верифицированную запись
-      if (!existing || !existing.is_verified) {
+    // 2. Для режима восстановления: проверяем, существует ли верифицированный аккаунт
+    if (mode === 'restore') {
+      const { data: verified } = await supabase
+        .from('auth_codes')
+        .select('id')
+        .eq('phone', phone10)
+        .eq('is_verified', true)
+        .maybeSingle();
+
+      if (!verified) {
         setLoading(false);
         alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
         return;
       }
-      // Обновляем только код и сбрасываем is_verified, сохраняя подписку
-      const { error } = await supabase
-        .from('auth_codes')
-        .update({
-          code: sessionToken,
-          is_verified: false,
-        })
-        .eq('id', existing.id);
-      setLoading(false);
-      if (!error) setStep('verify');
-      else alert('Ошибка при обновлении: ' + error.message);
     }
+
+    // 3. Создаём новую неверифицированную запись (без копирования подписки)
+    const { error } = await supabase.from('auth_codes').insert([{
+      phone: phone10,
+      code: sessionToken,
+      is_verified: false,
+      name: name.trim() || 'Пользователь',
+    }]);
+
+    setLoading(false);
+    if (!error) setStep('verify');
+    else alert('Ошибка: ' + error.message);
   };
 
   useEffect(() => {
     if (step !== 'verify') return;
     const phone10 = getPhone10();
     if (!phone10) return;
+
     const interval = setInterval(async () => {
+      // Ищем любую верифицированную запись с этим номером (новую, созданную ботом)
       const { data, error } = await supabase
         .from('auth_codes')
         .select('is_verified, name, role, subscription, expiry_date, tg_user_id')
         .eq('phone', phone10)
-        .eq('code', code)
-        .single();
+        .eq('is_verified', true)
+        .maybeSingle();
+
       if (data?.is_verified) {
         clearInterval(interval);
         setUser({
@@ -130,9 +117,11 @@ export const AuthView = () => {
         setView('catalog');
       }
     }, 2000);
+
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
+  // --- ОСТАЛЬНОЙ JSX (без изменений) ---
   const cardBg = isLight ? 'bg-white' : 'bg-[#0F0F0F]';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
