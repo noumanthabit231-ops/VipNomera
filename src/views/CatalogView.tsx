@@ -13,17 +13,40 @@ export const CatalogView = ({
   setSelectedPhone, setView, userOrders, isLight, toggleTheme
 }: any) => {
 
-  const isVIP = user?.subscription === 'ACTIVE' || user?.role === 'ADMIN';
-  const stats = useMemo(() => ({ total: phones?.length || 0 }), [phones]);
+  const hasSubscription = user?.subscription === 'ACTIVE' || user?.role === 'ADMIN';
+  const totalPhones = phones?.length || 0;
 
-  // Определяем, сколько номеров показывать
-  const userIsVIP = isVIP;
-  let phonesToShow = filteredPhones;
-  let showLimitMessage = false;
-  if (!userIsVIP && filteredPhones.length > 5) {
-    phonesToShow = filteredPhones.slice(0, 5);
-    showLimitMessage = true;
+  // Разделяем номера на VIP и обычные (по наличию метки "VIP")
+  const vipNumbers = useMemo(() => {
+    return filteredPhones.filter(phone => {
+      const phoneLabels = phone.label_ids || [];
+      return phoneLabels.some(labelId => {
+        const label = labels.find(l => l.id === labelId);
+        return label?.text === 'VIP'; // проверяем текст метки
+      });
+    });
+  }, [filteredPhones, labels]);
+
+  const regularNumbers = useMemo(() => {
+    return filteredPhones.filter(phone => {
+      const phoneLabels = phone.label_ids || [];
+      return !phoneLabels.some(labelId => {
+        const label = labels.find(l => l.id === labelId);
+        return label?.text === 'VIP';
+      });
+    });
+  }, [filteredPhones, labels]);
+
+  // Список VIP для отображения
+  let visibleVIPs = vipNumbers;
+  let blurredVIPs: any[] = [];
+  if (!hasSubscription && vipNumbers.length > 5) {
+    visibleVIPs = vipNumbers.slice(0, 5);
+    blurredVIPs = vipNumbers.slice(5);
   }
+
+  // Все номера в порядке: сначала обычные, потом видимые VIP, потом заблюренные VIP
+  const orderedPhones = [...regularNumbers, ...visibleVIPs, ...blurredVIPs];
 
   const handleCrownClick = () => {
     if (user) setView('subscription');
@@ -76,7 +99,7 @@ export const CatalogView = ({
       <div className="px-4">
         <div className={cn("w-full border rounded-xl p-3 flex items-center justify-between px-6", isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5")}>
           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Всего номеров в базе</span>
-          <span className={cn("text-lg font-bold", isLight ? "text-black" : "text-white")}>{stats.total}</span>
+          <span className={cn("text-lg font-bold", isLight ? "text-black" : "text-white")}>{totalPhones}</span>
         </div>
       </div>
 
@@ -100,10 +123,10 @@ export const CatalogView = ({
 
       {/* БАННЕР VIP */}
       <div className="px-4">
-        <button onClick={() => userIsVIP ? setView('order') : setView('profile')} className={cn("w-full flex flex-col items-center justify-center py-4 rounded-2xl border-2 transition-all relative overflow-hidden group active:scale-95", userIsVIP ? "border-[#D4AF37]/20 bg-[#D4AF37]/5 text-[#D4AF37]" : (isLight ? "border-gray-200 bg-white text-gray-600 shadow-sm" : "border-gray-900 bg-[#070707] text-gray-400"))}>
+        <button onClick={() => hasSubscription ? setView('order') : setView('profile')} className={cn("w-full flex flex-col items-center justify-center py-4 rounded-2xl border-2 transition-all relative overflow-hidden group active:scale-95", hasSubscription ? "border-[#D4AF37]/20 bg-[#D4AF37]/5 text-[#D4AF37]" : (isLight ? "border-gray-200 bg-white text-gray-600 shadow-sm" : "border-gray-900 bg-[#070707] text-gray-400"))}>
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full duration-1000 transition-transform" />
-          <div className="flex items-center gap-2 mb-0.5">{userIsVIP ? <TrendingUp size={14} /> : <Lock size={14} />}<span className="text-[11px] font-bold tracking-wide">{userIsVIP ? "Персональный подбор" : "VIP заказ заблокирован"}</span></div>
-          <span className="text-[9px] font-medium opacity-60 tracking-wide">{userIsVIP ? "Найдем любой номер под ваши критерии" : "Доступно только владельцам подписки"}</span>
+          <div className="flex items-center gap-2 mb-0.5">{hasSubscription ? <TrendingUp size={14} /> : <Lock size={14} />}<span className="text-[11px] font-bold tracking-wide">{hasSubscription ? "Персональный подбор" : "VIP заказ заблокирован"}</span></div>
+          <span className="text-[9px] font-medium opacity-60 tracking-wide">{hasSubscription ? "Найдем любой номер под ваши критерии" : "Доступно только владельцам подписки"}</span>
         </button>
       </div>
 
@@ -119,109 +142,106 @@ export const CatalogView = ({
           <p className="text-gray-500 font-bold tracking-wide text-xs">Совпадений не найдено</p>
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-3 gap-2 px-2 sm:gap-3 sm:px-4">
-            {phonesToShow.map((phone: any, index: number) => {
-              const isSold = phone.status === 'SOLD';
-              const firstLabelId = phone.label_ids?.[0];
-              const firstLabel = labels.find((l: any) => l.id === firstLabelId);
-              return (
-                <div 
-                  key={phone.id}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                  className={cn(
-                    "relative aspect-[3/4] border rounded-xl overflow-hidden group transition-all animate-in fade-in slide-in-from-bottom-2",
-                    isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5",
-                    isSold ? "opacity-60 grayscale-[30%]" : ""
-                  )}
-                >
-                  <div className={cn("absolute inset-0 bg-gradient-to-b transition-colors", isLight ? "from-transparent to-gray-50 group-hover:from-gray-50" : "from-[#111] to-black group-hover:from-[#161616]")} />
-                  
-                  {isSold && (
-                    <div className="absolute inset-0 z-30 bg-black/80 flex items-center justify-center backdrop-blur-[1px]">
-                      <span className="text-red-500 font-bold tracking-widest text-[10px] border-2 border-red-500 px-2 py-0.5 rotate-[-15deg]">ПРОДАНО</span>
-                    </div>
-                  )}
+        <div className="grid grid-cols-3 gap-2 px-2 sm:gap-3 sm:px-4">
+          {orderedPhones.map((phone: any, index: number) => {
+            const isSold = phone.status === 'SOLD';
+            const isBlurred = !hasSubscription && blurredVIPs.includes(phone);
+            const firstLabelId = phone.label_ids?.[0];
+            const firstLabel = labels.find((l: any) => l.id === firstLabelId);
 
-                  <div className="absolute top-0 left-0 right-0 h-1 z-20">
-                    <div className={cn("h-full w-full transition-colors", isSold ? "bg-red-500" : "bg-[#D4AF37]")} />
-                  </div>
+            return (
+              <div 
+                key={phone.id}
+                style={{ animationDelay: `${index * 50}ms` }}
+                className={cn(
+                  "relative aspect-[3/4] border rounded-xl overflow-hidden group transition-all animate-in fade-in slide-in-from-bottom-2",
+                  isLight ? "bg-white border-gray-200 shadow-sm" : "bg-[#0A0A0A] border-white/5",
+                  isSold ? "opacity-60 grayscale-[30%]" : "",
+                  isBlurred ? "blur-[4px] hover:blur-0 transition-all duration-300" : ""
+                )}
+              >
+                <div className={cn("absolute inset-0 bg-gradient-to-b transition-colors", isLight ? "from-transparent to-gray-50 group-hover:from-gray-50" : "from-[#111] to-black group-hover:from-[#161616]")} />
+                
+                {isSold && (
+                   <div className="absolute inset-0 z-30 bg-black/80 flex items-center justify-center backdrop-blur-[1px]">
+                     <span className="text-red-500 font-bold tracking-widest text-[10px] border-2 border-red-500 px-2 py-0.5 rotate-[-15deg]">ПРОДАНО</span>
+                   </div>
+                )}
 
-                  {/* Метка: текст с цветным фоном */}
-                  <div className="absolute top-2 left-0 right-0 px-1.5 flex justify-between items-start z-30">
-                    {firstLabel && (
-                      <div 
-                        className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shadow-md"
-                        style={{ backgroundColor: firstLabel.color, color: '#fff', textShadow: '0 0 1px black' }}
-                      >
-                        {firstLabel.text}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative z-10 h-full flex flex-col p-2 pt-4">
-                    <div className="mb-auto opacity-40 group-hover:opacity-100 transition-opacity">
-                      <div className={cn("w-5 h-7 rounded-[2px] border relative overflow-hidden", isLight ? "bg-gray-100 border-gray-300" : "bg-gradient-to-br from-gray-800 to-black border-white/10")} style={{ clipPath: 'polygon(0 0, 70% 0, 100% 30%, 100% 100%, 0 100%)' }}>
-                        <div className="absolute bottom-1 left-1 w-3 h-3 bg-[#D4AF37]/20 rounded-sm" />
-                      </div>
-                    </div>
-
-                    <div className="mt-2">
-                      <h3 className={cn(
-                        "text-[10px] sm:text-[11px] font-bold font-sans whitespace-nowrap transition-colors overflow-x-auto hide-scrollbar", 
-                        isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
-                      )}>
-                        {phone.number}
-                      </h3>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-[10px] font-bold text-[#D4AF37] whitespace-nowrap">
-                          {phone.price.toLocaleString()} ₸
-                        </span>
-                      </div>
-                    </div>
-
-                    <button 
-                      disabled={isSold}
-                      onClick={() => {
-                        if (!isSold) {
-                          userIsVIP ? setSelectedPhone(phone) : setView('profile');
-                        }
-                      }}
-                      className={cn(
-                        "mt-2 w-full py-1.5 rounded-lg text-[9px] font-bold tracking-wide transition-all z-40 relative",
-                        isSold ? "bg-red-500/10 text-red-500 border border-red-500/20" : 
-                        userIsVIP ? "bg-[#D4AF37] text-black shadow-[0_0_10px_rgba(212,175,55,0.2)]" : 
-                        (isLight ? "bg-gray-100 text-gray-500 border border-gray-200" : "bg-[#151515] text-gray-500 border border-white/5")
-                      )}
-                    >
-                      {isSold ? 'Продано' : userIsVIP ? 'Купить' : 'VIP'}
-                    </button>
-                  </div>
+                <div className="absolute top-0 left-0 right-0 h-1 z-20">
+                   <div className={cn("h-full w-full transition-colors", isSold ? "bg-red-500" : "bg-[#D4AF37]")} />
                 </div>
-              );
-            })}
-          </div>
-          {showLimitMessage && (
-            <div className="mt-6 px-4 text-center">
-              <div className={cn("p-5 rounded-2xl border", isLight ? "bg-gray-50 border-gray-200" : "bg-[#111] border-gray-800")}>
-                <p className={cn("text-xs font-bold mb-2", isLight ? "text-gray-600" : "text-gray-400")}>
-                  🔒 Чтобы увидеть больше премиум номеров, оформите VIP-подписку
-                </p>
-                <button 
-                  onClick={() => setView('profile')}
-                  className="mt-2 px-5 py-2 bg-[#D4AF37] text-black rounded-xl font-black uppercase text-[11px] tracking-widest shadow-lg active:scale-95"
-                >
-                  Купить VIP за 3 500 ₸
-                </button>
+
+                {/* Метка: текст с цветным фоном */}
+                <div className="absolute top-2 left-0 right-0 px-1.5 flex justify-between items-start z-30">
+                  {firstLabel && (
+                    <div 
+                      className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shadow-md"
+                      style={{ backgroundColor: firstLabel.color, color: '#fff', textShadow: '0 0 1px black' }}
+                    >
+                      {firstLabel.text}
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative z-10 h-full flex flex-col p-2 pt-4">
+                  <div className="mb-auto opacity-40 group-hover:opacity-100 transition-opacity">
+                    <div className={cn("w-5 h-7 rounded-[2px] border relative overflow-hidden", isLight ? "bg-gray-100 border-gray-300" : "bg-gradient-to-br from-gray-800 to-black border-white/10")} style={{ clipPath: 'polygon(0 0, 70% 0, 100% 30%, 100% 100%, 0 100%)' }}>
+                      <div className="absolute bottom-1 left-1 w-3 h-3 bg-[#D4AF37]/20 rounded-sm" />
+                    </div>
+                  </div>
+
+                  <div className="mt-2">
+                    <h3 className={cn(
+                      "text-[10px] sm:text-[11px] font-bold font-sans whitespace-nowrap transition-colors overflow-x-auto hide-scrollbar", 
+                      isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
+                    )}>
+                      {phone.number}
+                    </h3>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[10px] font-bold text-[#D4AF37] whitespace-nowrap">
+                        {phone.price.toLocaleString()} ₸
+                      </span>
+                    </div>
+                  </div>
+
+                  <button 
+                    disabled={isSold || isBlurred}
+                    onClick={() => {
+                      if (!isSold && !isBlurred) {
+                        hasSubscription ? setSelectedPhone(phone) : setView('profile');
+                      } else if (isBlurred) {
+                        setView('profile');
+                      }
+                    }}
+                    className={cn(
+                      "mt-2 w-full py-1.5 rounded-lg text-[9px] font-bold tracking-wide transition-all z-40 relative",
+                      isSold ? "bg-red-500/10 text-red-500 border border-red-500/20" : 
+                      isBlurred ? "bg-gray-800/50 text-gray-400 cursor-pointer" :
+                      hasSubscription ? "bg-[#D4AF37] text-black shadow-[0_0_10px_rgba(212,175,55,0.2)]" : 
+                      (isLight ? "bg-gray-100 text-gray-500 border border-gray-200" : "bg-[#151515] text-gray-500 border border-white/5")
+                    )}
+                  >
+                    {isSold ? 'Продано' : isBlurred ? '🔓 Открыть VIP' : (hasSubscription ? 'Купить' : 'VIP')}
+                  </button>
+                </div>
+
+                {isBlurred && (
+                  <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm group-hover:backdrop-blur-0 group-hover:bg-transparent transition-all duration-300">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white bg-black/60 px-2 py-1 rounded-full">
+                      🔒 VIP
+                    </span>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-        </>
+            );
+          })}
+        </div>
       )}
 
       <div className="pt-10 flex flex-col items-center justify-center opacity-20 select-none">
-        <Crown size={12} className={cn("mb-2", isLight ? "text-black" : "text-[#D4AF37]")} />
-        <span className={cn("text-[8px] font-medium tracking-widest", isLight ? "text-black" : "text-white")}>Конец списка</span>
+         <Crown size={12} className={cn("mb-2", isLight ? "text-black" : "text-[#D4AF37]")} />
+         <span className={cn("text-[8px] font-medium tracking-widest", isLight ? "text-black" : "text-white")}>Конец списка</span>
       </div>
     </div>
   );
