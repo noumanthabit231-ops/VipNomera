@@ -7,10 +7,14 @@ import {
 import { cn } from '../cn';
 import { supabase } from '../supabase';
 
+// Принимает 10 цифр, возвращает +7 XXX XXX XX XX
 const formatDisplay = (phoneDigits: string): string => {
   if (!phoneDigits) return '+7';
-  const d = phoneDigits.padStart(11, '7').slice(0, 11);
-  return `+7 ${d.slice(1,4)} ${d.slice(4,7)} ${d.slice(7,9)} ${d.slice(9,11)}`;
+  const digits = phoneDigits.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `+7 ${digits.slice(0,3)} ${digits.slice(3,6)} ${digits.slice(6,8)} ${digits.slice(8,10)}`;
+  }
+  return `+7 ${digits}`;
 };
 
 const getDaysDiff = (expiryStr: string) => {
@@ -36,13 +40,14 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
   const [localVIP, setLocalVIP] = useState(user?.subscription === 'ACTIVE');
 
-  const getPhone11 = (): string => {
-  if (!user?.phone) return '';
-  let digits = user.phone.replace(/\D/g, '');
-  if (digits.length === 10) digits = '7' + digits;
-  if (digits.length > 11) digits = digits.slice(0, 11);
-  return digits;
-};
+  // Нормализуем номер к 10 цифрам
+  const getPhoneDigits = (): string => {
+    if (!user?.phone) return '';
+    let digits = user.phone.replace(/\D/g, '');
+    if (digits.length === 11 && digits.startsWith('7')) digits = digits.slice(1);
+    if (digits.length > 10) digits = digits.slice(-10);
+    return digits;
+  };
 
   const refreshUserStatus = async () => {
     const digits = getPhoneDigits();
@@ -70,15 +75,16 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   };
 
   useEffect(() => {
-    refreshUserStatus(); // при загрузке
-    const interval = setInterval(refreshUserStatus, 10000); // каждые 10 секунд
+    refreshUserStatus();
+    const interval = setInterval(refreshUserStatus, 10000);
     return () => clearInterval(interval);
   }, [user?.phone]);
 
   const isAdmin = user?.role === 'ADMIN';
   const isVIP = localVIP || isAdmin;
   const daysLeft = getDaysDiff(user?.expiry_date);
-  const displayPhone = formatDisplay(getPhoneDigits());
+  const phoneDigits = getPhoneDigits();
+  const displayPhone = formatDisplay(phoneDigits);
 
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
