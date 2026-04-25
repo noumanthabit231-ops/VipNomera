@@ -7,26 +7,6 @@ import {
 import { cn } from '../cn';
 import { supabase } from '../supabase';
 
-// Вспомогательная функция: повторные попытки запроса
-async function fetchWithRetry(url: string, options: RequestInit, retries = 3): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await fetch(url, options);
-      if (res.ok) return res;
-      if (res.status === 503 || res.status === 500) {
-        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-        continue;
-      }
-      return res;
-    } catch (e) {
-      if (i === retries - 1) throw e;
-      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-    }
-  }
-  throw new Error('Max retries exceeded');
-}
-
-// Приводит номер к 10 цифрам
 const normalizePhone = (phone: string): string => {
   let digits = phone.replace(/\D/g, '');
   if (digits.length === 11 && digits.startsWith('7')) digits = digits.slice(1);
@@ -34,14 +14,12 @@ const normalizePhone = (phone: string): string => {
   return digits;
 };
 
-// Форматирует номер для отображения (+7 XXX XXX XX XX)
 const formatDisplay = (phoneDigits: string): string => {
   if (!phoneDigits) return '+7';
   const d = phoneDigits.padStart(10, '0').slice(0, 10);
   return `+7 ${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
 };
 
-// Возвращает объект дней до окончания подписки
 const getDaysDiff = (expiryStr: string) => {
   if (!expiryStr) return null;
   const today = new Date();
@@ -64,15 +42,13 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
   const [localVIP, setLocalVIP] = useState(user?.subscription === 'ACTIVE');
-  const [daysLeft, setDaysLeft] = useState<{ count: number; word: string; isExpired: boolean } | null>(null);
+  const [daysLeft, setDaysLeft] = useState(null);
 
-  // Получаем 10-значный номер пользователя
   const getPhoneDigits = (): string => {
     if (!user?.phone) return '';
     return normalizePhone(user.phone);
   };
 
-  // Обновить статус VIP напрямую из БД
   const refreshUserStatus = async () => {
     const digits = getPhoneDigits();
     if (!digits) return;
@@ -80,19 +56,18 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
       .from('auth_codes')
       .select('subscription, expiry_date, role')
       .eq('phone', digits)
+      .eq('is_verified', true)
       .maybeSingle();
     if (data && !error) {
-      const isVipActive = data.subscription === 'ACTIVE' && (!data.expiry_date || new Date(data.expiry_date) > new Date());
-      setLocalVIP(isVipActive);
+      const isActive = data.subscription === 'ACTIVE' && (!data.expiry_date || new Date(data.expiry_date) > new Date());
+      setLocalVIP(isActive);
       if (data.expiry_date) setDaysLeft(getDaysDiff(data.expiry_date));
-      // Обновляем глобального пользователя, если изменилось
       if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
         setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
       }
     }
   };
 
-  // Периодическая проверка статуса VIP (каждые 10 секунд)
   useEffect(() => {
     refreshUserStatus();
     const interval = setInterval(refreshUserStatus, 10000);
@@ -103,7 +78,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const isVIP = localVIP || isAdmin;
   const displayPhone = formatDisplay(getPhoneDigits());
 
-  // Прямое обновление VIP через Supabase (без Edge-функции)
   const activateVipDirectly = async () => {
     const digits = getPhoneDigits();
     if (!digits) return false;
@@ -112,7 +86,8 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     const { error } = await supabase
       .from('auth_codes')
       .update({ subscription: 'ACTIVE', expiry_date: expiryDate.toISOString() })
-      .eq('phone', digits);
+      .eq('phone', digits)
+      .eq('is_verified', true);
     if (!error) {
       await refreshUserStatus();
       return true;
@@ -120,11 +95,9 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     return false;
   };
 
-  // Отправка уведомления админу (через Edge-функцию, но с повторными попытками и fallback)
   const sendPaymentNotification = async () => {
     const digits = getPhoneDigits();
     if (!digits) return false;
-
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 3 500 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
     const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
     const contactUrl = `https://t.me/+${digits}`;
@@ -138,41 +111,29 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
       { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
       { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
     ];
-    let success = false;
     for (const { token, chatId } of targets) {
       if (!token || !chatId) continue;
       try {
-        const res = await fetchWithRetry(`https://api.telegram.org/bot${token}/sendMessage`, {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown', reply_markup })
         });
-        if (res.ok) success = true;
       } catch (err) { console.error(err); }
     }
-    return success;
+    return true;
   };
 
   const handleBuyVip = async () => {
     setIsSending(true);
-    // Сначала пытаемся отправить уведомление админу (через Telegram)
     const notified = await sendPaymentNotification();
     if (notified) {
       setIsSent(true);
       setTimeout(() => setIsSent(false), 3500);
-      // Дополнительно: можно сразу активировать VIP, если доверяете пользователю, но лучше дождаться подтверждения админа.
-      // Для автоматической активации раскомментируйте следующую строку:
-      // await activateVipDirectly();
+      // Автоматическая активация (можно убрать, если хотите только уведомление)
+      await activateVipDirectly();
     } else {
-      // Если уведомление не отправилось, пробуем активировать VIP напрямую (как запасной вариант)
-      const activated = await activateVipDirectly();
-      if (activated) {
-        alert("VIP активирован автоматически. Статус обновлён.");
-        setIsSent(true);
-        setTimeout(() => setIsSent(false), 3500);
-      } else {
-        alert("Не удалось отправить уведомление и активировать VIP. Попробуйте позже или свяжитесь с поддержкой.");
-      }
+      alert("Не удалось отправить уведомление. Попробуйте позже.");
     }
     setIsSending(false);
   };
@@ -257,12 +218,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
                 </div>
               </div>
             )}
-            {daysLeft?.isExpired && (
-              <div className="flex items-center justify-between p-4 bg-black/40 border border-red-500/30 rounded-2xl relative z-10">
-                <span className="text-xs font-bold text-red-400">Подписка истекла</span>
-                <button onClick={handleBuyVip} className="px-4 py-2 bg-[#D4AF37] text-black rounded-xl text-[10px] font-black">Продлить</button>
-              </div>
-            )}
           </div>
         )}
 
@@ -288,7 +243,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               <CreditCard size={18} /> Оплатить через Kaspi
             </a>
             <button onClick={handleBuyVip} disabled={isSending || isSent} className={cn("w-full flex items-center justify-center gap-2 py-4 mb-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all", isSent ? "bg-green-500/10 text-green-500 border border-green-500/30" : "bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 active:scale-95 shadow-[0_5px_15px_rgba(212,175,55,0.2)]")}>
-              {isSending ? <span className="animate-pulse">Отправка...</span> : isSent ? <><CheckCircle2 size={16} /> Заявка у администратора</> : <><CheckCircle2 size={16} className="text-black" /> Я оплатил</>}
+              {isSending ? <span className="animate-pulse">Отправка...</span> : isSent ? <><CheckCircle2 size={16} /> Заявка отправлена</> : <><CheckCircle2 size={16} className="text-black" /> Я оплатил</>}
             </button>
             <button onClick={() => setIsInstructionsOpen(!isInstructionsOpen)} className="w-full flex items-center justify-between p-4 bg-[#111] border border-gray-800 rounded-2xl relative z-10 text-gray-400 hover:text-white transition-colors">
               <span className="text-[10px] font-black uppercase tracking-widest">Что делать после оплаты?</span>
