@@ -34,45 +34,36 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
 
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
-  const tgTokens = [
-    { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
-    { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
-  ].filter(t => t.token && t.chatId);
-
+  // ПРЯМОЕ ИСПОЛЬЗОВАНИЕ токенов (без массивов)
   const sendPaymentNotification = async () => {
     const cleanPhone = user?.phone?.replace(/\D/g, '');
     if (!cleanPhone) return false;
 
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
 
-    const keyboard = {
-      inline_keyboard: [[{ text: "✅ Подтвердить VIP", callback_data: `confirm_${cleanPhone}` }]]
+    // Точно такой же JSON, как в PowerShell (работает)
+    const replyMarkup = `{"inline_keyboard":[[{"text":"✅ Подтвердить VIP","callback_data":"confirm_${cleanPhone}"}]]}`;
+
+    const payload = {
+      chat_id: "7620660514", // явно указываем ID чата
+      text: text,
+      parse_mode: "Markdown",
+      reply_markup: replyMarkup
     };
 
-    console.log('Sending to tokens:', tgTokens);
-    console.log('Callback data:', `confirm_${cleanPhone}`);
-
-    let ok = false;
-    for (const { token, chatId } of tgTokens) {
-      try {
-        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text,
-            parse_mode: 'Markdown',
-            reply_markup: keyboard
-          }),
-        });
-        const data = await res.json();
-        console.log(`Response from bot ${token}:`, data);
-        if (data.ok) ok = true;
-      } catch (err) {
-        console.error('Fetch error:', err);
-      }
+    try {
+      const res = await fetch(`https://api.telegram.org/bot8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      console.log('Telegram response:', data);
+      return data.ok === true;
+    } catch (err) {
+      console.error('Fetch error:', err);
+      return false;
     }
-    return ok;
   };
 
   const handleLogout = () => {
