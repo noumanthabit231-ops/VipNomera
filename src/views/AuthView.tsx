@@ -45,37 +45,53 @@ export const AuthView = () => {
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleStartAuth = async () => {
-    const phone10 = getPhone10();
-    if (!phone10) {
-      alert('Введите 10 цифр номера');
+  const phone10 = getPhone10();
+  if (!phone10) {
+    alert('Введите 10 цифр номера');
+    return;
+  }
+  if (mode === 'register' && !name.trim()) {
+    alert('Пожалуйста, введите ваше имя');
+    return;
+  }
+  setLoading(true);
+  const sessionToken = generateSessionToken();
+  setCode(sessionToken);
+
+  // 1. Удаляем все старые неверифицированные записи для этого номера
+  await supabase.from('auth_codes').delete().eq('phone', phone10).eq('is_verified', false);
+
+  // 2. Для режима восстановления проверяем, существует ли верифицированный аккаунт
+  if (mode === 'restore') {
+    const { data: existingVerified } = await supabase
+      .from('auth_codes')
+      .select('id')
+      .eq('phone', phone10)
+      .eq('is_verified', true)
+      .maybeSingle();
+
+    if (!existingVerified) {
+      setLoading(false);
+      alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
       return;
     }
-    if (mode === 'register' && !name.trim()) {
-      alert('Пожалуйста, введите ваше имя');
-      return;
-    }
-    setLoading(true);
-    const sessionToken = generateSessionToken();
-    setCode(sessionToken);
+  }
 
-    // Удаляем все старые неверифицированные записи для этого номера
-    await supabase.from('auth_codes').delete().eq('phone', phone10).eq('is_verified', false);
-    
-    // Вставляем новую запись
-    const { error } = await supabase.from('auth_codes').insert([{
-      phone: phone10,
-      code: sessionToken,
-      is_verified: false,
-      name: name.trim() || 'Пользователь',
-    }]);
+  // 3. Создаём новую неверифицированную запись (и для регистрации, и для восстановления)
+  const { error } = await supabase.from('auth_codes').insert([{
+    phone: phone10,
+    code: sessionToken,
+    is_verified: false,
+    name: name.trim() || 'Пользователь',
+  }]);
 
-    setLoading(false);
-    if (!error) {
-      setStep('verify');
-    } else {
-      alert('Ошибка при регистрации: ' + error.message);
-    }
-  };
+  setLoading(false);
+  if (!error) {
+    setStep('verify');
+  } else {
+    alert('Ошибка при регистрации: ' + error.message);
+  }
+};
 
   useEffect(() => {
     if (step !== 'verify') return;
