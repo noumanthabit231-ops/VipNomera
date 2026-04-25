@@ -147,12 +147,12 @@ export const CatalogView = ({
                    <div className={cn("h-full w-full transition-colors", isSold ? "bg-red-500" : "bg-[#D4AF37]")} />
                 </div>
 
-                {/* Метка: теперь текст вместо точки */}
+                {/* Метка: текст с крупным шрифтом и ярким фоном */}
                 <div className="absolute top-2 left-0 right-0 px-1.5 flex justify-between items-start z-30">
                   {firstLabel && (
                     <div 
-                      className="text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm shadow-sm"
-                      style={{ backgroundColor: `${firstLabel.color}CC`, color: '#fff' }}
+                      className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shadow-md"
+                      style={{ backgroundColor: firstLabel.color, color: '#fff', textShadow: '0 0 1px black' }}
                     >
                       {firstLabel.text}
                     </div>
