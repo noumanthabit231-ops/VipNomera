@@ -36,35 +36,32 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
 
   // ПРЯМОЕ ИСПОЛЬЗОВАНИЕ токенов (без массивов)
   const sendPaymentNotification = async () => {
-    const cleanPhone = user?.phone?.replace(/\D/g, '');
-    if (!cleanPhone) return false;
+  const cleanPhone = user?.phone?.replace(/\D/g, '');
+  if (!cleanPhone) return false;
 
-    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+  const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
 
-    // Точно такой же JSON, как в PowerShell (работает)
-    const replyMarkup = `{"inline_keyboard":[[{"text":"✅ Подтвердить VIP","callback_data":"confirm_${cleanPhone}"}]]}`;
+  const replyMarkup = `{"inline_keyboard":[[{"text":"✅ Подтвердить VIP","callback_data":"confirm_${cleanPhone}"}]]}`;
 
-    const payload = {
-      chat_id: "7620660514", // явно указываем ID чата
-      text: text,
-      parse_mode: "Markdown",
-      reply_markup: replyMarkup
-    };
-
-    try {
-      const res = await fetch(`https://api.telegram.org/bot8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      console.log('Telegram response:', data);
-      return data.ok === true;
-    } catch (err) {
-      console.error('Fetch error:', err);
-      return false;
-    }
-  };
+  try {
+    const response = await fetch('https://api.telegram.org/bot8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: '7620660514',
+        text: text,
+        parse_mode: 'Markdown',
+        reply_markup: replyMarkup
+      })
+    });
+    const data = await response.json();
+    console.log('Telegram ответ:', data);
+    return data.ok === true;
+  } catch (err) {
+    console.error('Ошибка запроса:', err);
+    return false;
+  }
+};
 
   const handleLogout = () => {
     localStorage.removeItem('golden_v2_session');
