@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { 
-  Search, SlidersHorizontal, Crown, PackageSearch, 
+  Search, Crown, PackageSearch, 
   TrendingUp, FileText, Sun, Moon, Lock
 } from 'lucide-react';
 import { cn } from '../cn';
@@ -16,7 +16,7 @@ export const CatalogView = ({
   const hasSubscription = user?.subscription === 'ACTIVE' || user?.role === 'ADMIN';
   const totalPhones = phones?.length || 0;
 
-  // Разделяем номера на VIP и обычные
+  // Разделяем номера на VIP и обычные (по наличию метки "VIP")
   const vipNumbers = useMemo(() => {
     return filteredPhones.filter(phone => {
       const phoneLabels = phone.label_ids || [];
@@ -37,27 +37,29 @@ export const CatalogView = ({
     });
   }, [filteredPhones, labels]);
 
-  // Сколько VIP показываем без подписки
-  const visibleVIPCount = hasSubscription ? vipNumbers.length : Math.min(vipNumbers.length, 5);
-  const visibleVIPs = vipNumbers.slice(0, visibleVIPCount);
-  const hiddenVIPs = vipNumbers.slice(visibleVIPCount);
+  // Список VIP для отображения
+  let visibleVIPs = vipNumbers;
+  let hiddenVIPs: any[] = [];
+  let showDivider = false;
+  if (!hasSubscription && vipNumbers.length > 5) {
+    visibleVIPs = vipNumbers.slice(0, 5);
+    hiddenVIPs = vipNumbers.slice(5);
+    showDivider = true;
+  }
 
-  // Порядок: сначала обычные, потом показанные VIP, потом (если есть скрытые) ставим блок-разделитель, затем скрытые (но с затемнением)
+  // Все номера в порядке: обычные, видимые VIP, затем разделитель, затем скрытые VIP
   const orderedPhones = [...regularNumbers, ...visibleVIPs];
-  const hasHiddenVIPs = hiddenVIPs.length > 0 && !hasSubscription;
-
-  // Обработчик клика на кнопку "Купить VIP"
-  const handleUpgradeClick = () => {
-    if (!user) {
-      setView('auth');
-    } else if (!hasSubscription) {
-      setView('subscription');
-    } else {
-      setView('profile'); // fallback
-    }
-  };
+  if (showDivider) {
+    // Добавляем специальный элемент-разделитель
+    orderedPhones.push({ isDivider: true, hiddenCount: hiddenVIPs.length });
+  }
 
   const handleCrownClick = () => {
+    if (user) setView('subscription');
+    else setView('auth');
+  };
+
+  const handleUpgradeClick = () => {
     if (user) setView('subscription');
     else setView('auth');
   };
@@ -112,14 +114,10 @@ export const CatalogView = ({
         </div>
       </div>
 
-      {/* ПОИСК */}
+      {/* ПОИСК (кнопка фильтра удалена) */}
       <div className="relative group px-4">
         <div className="absolute inset-y-0 left-8 flex items-center pointer-events-none"><Search className="text-gray-500 group-focus-within:text-[#D4AF37] transition-colors" size={18} /></div>
         <input type="text" placeholder="Поиск по цифрам..." className={cn("w-full border-2 rounded-2xl py-4 pl-12 pr-12 text-sm font-bold outline-none transition-all", isLight ? "bg-white border-gray-200 text-black placeholder:text-gray-400 focus:border-[#D4AF37]" : "bg-[#0F0F0F] border-gray-900 text-white placeholder:text-gray-500 focus:border-[#D4AF37]/30")} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-        <div className="absolute inset-y-0 right-6 flex items-center">
-          <div className={cn("h-6 w-[1px] mr-2", isLight ? "bg-gray-200" : "bg-gray-800")} />
-          <button className="p-2 text-gray-500 hover:text-[#D4AF37] transition-colors"><SlidersHorizontal size={18} /></button>
-        </div>
       </div>
 
       {/* ФИЛЬТРЫ */}
@@ -132,7 +130,7 @@ export const CatalogView = ({
 
       {/* БАННЕР VIP */}
       <div className="px-4">
-        <button onClick={handleUpgradeClick} className={cn("w-full flex flex-col items-center justify-center py-4 rounded-2xl border-2 transition-all relative overflow-hidden group active:scale-95", hasSubscription ? "border-[#D4AF37]/20 bg-[#D4AF37]/5 text-[#D4AF37]" : (isLight ? "border-gray-200 bg-white text-gray-600 shadow-sm" : "border-gray-900 bg-[#070707] text-gray-400"))}>
+        <button onClick={() => hasSubscription ? setView('order') : setView('profile')} className={cn("w-full flex flex-col items-center justify-center py-4 rounded-2xl border-2 transition-all relative overflow-hidden group active:scale-95", hasSubscription ? "border-[#D4AF37]/20 bg-[#D4AF37]/5 text-[#D4AF37]" : (isLight ? "border-gray-200 bg-white text-gray-600 shadow-sm" : "border-gray-900 bg-[#070707] text-gray-400"))}>
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full duration-1000 transition-transform" />
           <div className="flex items-center gap-2 mb-0.5">{hasSubscription ? <TrendingUp size={14} /> : <Lock size={14} />}<span className="text-[11px] font-bold tracking-wide">{hasSubscription ? "Персональный подбор" : "VIP заказ заблокирован"}</span></div>
           <span className="text-[9px] font-medium opacity-60 tracking-wide">{hasSubscription ? "Найдем любой номер под ваши критерии" : "Доступно только владельцам подписки"}</span>
@@ -153,10 +151,53 @@ export const CatalogView = ({
       ) : (
         <div className="grid grid-cols-3 gap-2 px-2 sm:gap-3 sm:px-4">
           {orderedPhones.map((phone: any, index: number) => {
+            // Обработка разделителя
+            if (phone.isDivider) {
+              return (
+                <div key="divider" className="col-span-3 my-4">
+                  <div className={cn("flex flex-col items-center justify-center p-4 rounded-2xl border text-center gap-2", isLight ? "bg-gray-50 border-gray-200" : "bg-[#111] border-gray-800")}>
+                    <p className={cn("text-xs font-bold", isLight ? "text-gray-600" : "text-gray-400")}>
+                      👑 Чтобы увидеть остальные {phone.hiddenCount} VIP-номеров, оформите подписку
+                    </p>
+                    <button 
+                      onClick={handleUpgradeClick}
+                      className="px-5 py-2 bg-[#D4AF37] text-black rounded-xl font-black uppercase text-[11px] tracking-widest shadow-lg active:scale-95"
+                    >
+                      Купить VIP за 3 500 ₸
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
             const isSold = phone.status === 'SOLD';
+            const isHiddenVIP = !hasSubscription && hiddenVIPs.includes(phone);
             const firstLabelId = phone.label_ids?.[0];
             const firstLabel = labels.find((l: any) => l.id === firstLabelId);
 
+            // Для скрытых VIP показываем заглушку вместо карточки
+            if (isHiddenVIP) {
+              return (
+                <div 
+                  key={phone.id}
+                  className={cn(
+                    "relative aspect-[3/4] border rounded-xl overflow-hidden flex flex-col items-center justify-center text-center p-4 cursor-pointer group transition-all",
+                    isLight ? "bg-gray-100 border-gray-200" : "bg-[#0A0A0A] border-gray-800"
+                  )}
+                  onClick={handleUpgradeClick}
+                >
+                  <div className="text-4xl mb-2 opacity-50">👑</div>
+                  <p className={cn("text-[10px] font-bold uppercase tracking-widest", isLight ? "text-gray-500" : "text-gray-400")}>
+                    VIP не доступен
+                  </p>
+                  <p className={cn("text-[8px] mt-1", isLight ? "text-gray-400" : "text-gray-500")}>
+                    Оформите подписку
+                  </p>
+                </div>
+              );
+            }
+
+            // Обычная карточка (обычные номера + видимые VIP)
             return (
               <div 
                 key={phone.id}
@@ -216,7 +257,7 @@ export const CatalogView = ({
                     disabled={isSold}
                     onClick={() => {
                       if (!isSold) {
-                        hasSubscription ? setSelectedPhone(phone) : handleUpgradeClick();
+                        hasSubscription ? setSelectedPhone(phone) : setView('profile');
                       }
                     }}
                     className={cn(
@@ -226,60 +267,12 @@ export const CatalogView = ({
                       (isLight ? "bg-gray-100 text-gray-500 border border-gray-200" : "bg-[#151515] text-gray-500 border border-white/5")
                     )}
                   >
-                    {isSold ? 'Продано' : (hasSubscription ? 'Купить' : 'VIP 👑')}
+                    {isSold ? 'Продано' : (hasSubscription ? 'Купить' : 'VIP')}
                   </button>
                 </div>
               </div>
             );
           })}
-
-          {/* Разделитель со скрытыми VIP, только если нет подписки и есть скрытые номера */}
-          {hasHiddenVIPs && (
-            <>
-              <div className="col-span-3 my-4">
-                <div className={cn("p-5 rounded-2xl border text-center", isLight ? "bg-gray-50 border-gray-200" : "bg-[#111] border-gray-800")}>
-                  <p className={cn("text-sm font-bold mb-3", isLight ? "text-gray-700" : "text-gray-300")}>
-                    👑 Чтобы увидеть остальные {hiddenVIPs.length} VIP-номеров, оформите подписку
-                  </p>
-                  <button 
-                    onClick={handleUpgradeClick}
-                    className="px-6 py-2 bg-[#D4AF37] text-black rounded-xl font-black uppercase text-[11px] tracking-widest shadow-lg active:scale-95"
-                  >
-                    Купить VIP за 3 500 ₸
-                  </button>
-                </div>
-              </div>
-
-              {/* Скрытые VIP-номера (затемнённые, без клика) */}
-              {hiddenVIPs.map((phone: any, idx: number) => {
-                const firstLabelId = phone.label_ids?.[0];
-                const firstLabel = labels.find((l: any) => l.id === firstLabelId);
-                return (
-                  <div 
-                    key={phone.id}
-                    className="relative aspect-[3/4] border rounded-xl overflow-hidden opacity-50 grayscale-[20%] cursor-not-allowed"
-                    style={{ backgroundColor: isLight ? '#e5e7eb' : '#1f2937' }}
-                  >
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-20">
-                      <div className="text-center">
-                        <Lock size={24} className="mx-auto mb-1 text-white" />
-                        <span className="text-[9px] font-black text-white uppercase tracking-wider">VIP 👑 недоступен</span>
-                      </div>
-                    </div>
-                    <div className="p-2 pt-4 opacity-30">
-                      <div className="mb-auto">
-                        <div className="w-5 h-7 bg-gray-700 rounded-sm" />
-                      </div>
-                      <div className="mt-2">
-                        <div className="h-3 bg-gray-500 rounded w-3/4 mb-1" />
-                        <div className="h-2 bg-gray-600 rounded w-1/2" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </>
-          )}
         </div>
       )}
 
