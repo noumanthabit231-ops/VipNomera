@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Crown, ShieldCheck, Lock, LogOut, 
   ChevronLeft, Star, Clock, CheckCircle2,
-  Settings, User as UserIcon, ChevronDown, CreditCard
+  Settings, User as UserIcon, ChevronDown, CreditCard, MessageCircle
 } from 'lucide-react';
 import { cn } from '../cn';
 
@@ -34,34 +34,43 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
 
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
-  // ПРЯМОЕ ИСПОЛЬЗОВАНИЕ токенов (без массивов)
+  // Отправка уведомления в два чата с инлайн-кнопкой
   const sendPaymentNotification = async () => {
-  const cleanPhone = user?.phone?.replace(/\D/g, '');
-  if (!cleanPhone) return false;
+    const cleanPhone = user?.phone?.replace(/\D/g, '');
+    if (!cleanPhone) return false;
 
-  const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+    const replyMarkup = `{"inline_keyboard":[[{"text":"✅ Подтвердить VIP","callback_data":"confirm_${cleanPhone}"}]]}`;
 
-  const replyMarkup = `{"inline_keyboard":[[{"text":"✅ Подтвердить VIP","callback_data":"confirm_${cleanPhone}"}]]}`;
+    // Токены и чаты (основной и дополнительный)
+    const targets = [
+      { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
+      { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
+    ];
 
-  try {
-    const response = await fetch('https://api.telegram.org/bot8254818813:AAGOwrgCn-Yl6zLpp_vn_A9aAA4nfAFjtss/sendMessage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: '7620660514',
-        text: text,
-        parse_mode: 'Markdown',
-        reply_markup: replyMarkup
-      })
-    });
-    const data = await response.json();
-    console.log('Telegram ответ:', data);
-    return data.ok === true;
-  } catch (err) {
-    console.error('Ошибка запроса:', err);
-    return false;
-  }
-};
+    let success = false;
+    for (const { token, chatId } of targets) {
+      if (!token || !chatId) continue;
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text,
+            parse_mode: 'Markdown',
+            reply_markup: replyMarkup
+          })
+        });
+        const data = await res.json();
+        if (data.ok) success = true;
+        else console.error(`Ошибка токена ${token}:`, data);
+      } catch (err) {
+        console.error(`Ошибка отправки для токена ${token}:`, err);
+      }
+    }
+    return success;
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('golden_v2_session');
@@ -81,6 +90,11 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     }
   };
 
+  // Связь с менеджером (WhatsApp)
+  const contactManager = () => {
+    window.open('https://wa.me/77077977767', '_blank');
+  };
+
   const bgClass = isLight ? "bg-white" : "bg-[#050505]";
   const cardBgClass = isLight ? "bg-gray-50 border-gray-200" : "bg-[#0A0A0A] border-gray-800";
   const textPrimaryClass = isLight ? "text-black" : "text-white";
@@ -90,7 +104,10 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   return (
     <div className={cn("min-h-screen pt-6 pb-24 px-4 animate-in fade-in duration-500", bgClass)}>
       <div className="flex items-center justify-between mb-8">
-        <button onClick={() => setView('catalog')} className="w-10 h-10 flex items-center justify-center bg-[#111] border border-gray-800 rounded-full text-gray-400 hover:text-white transition-all active:scale-95">
+        <button 
+          onClick={() => setView('catalog')}
+          className="w-10 h-10 flex items-center justify-center bg-[#111] border border-gray-800 rounded-full text-gray-400 hover:text-white transition-all active:scale-95"
+        >
           <ChevronLeft size={20} />
         </button>
         <h1 className={cn("text-xl font-black uppercase tracking-widest", textPrimaryClass)}>Кабинет</h1>
@@ -121,10 +138,15 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               <span className="text-sm font-black text-blue-400 uppercase tracking-widest">Владелец</span>
             </div>
             <h3 className="text-2xl font-black text-white mb-2 relative z-10">Безлимитный<br/>доступ</h3>
-            <p className="text-gray-400 text-xs font-medium mb-6 relative z-10 w-3/4">Вам доступны все скрытые функции и панель управления системой.</p>
-            <button onClick={() => setView('admin')} className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-[0_5px_20px_rgba(59,130,246,0.3)] active:scale-95">
-              <Settings size={16} /> Открыть Админ-панель
-            </button>
+            <p className="text-gray-400 text-xs font-medium mb-4 relative z-10 w-3/4">Вам доступны все скрытые функции и панель управления системой.</p>
+            <div className="flex flex-col gap-3">
+              <button onClick={() => setView('admin')} className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-[0_5px_20px_rgba(59,130,246,0.3)] active:scale-95">
+                <Settings size={16} /> Открыть Админ-панель
+              </button>
+              <button onClick={contactManager} className="w-full flex items-center justify-center gap-2 py-4 bg-[#25D366] hover:bg-[#20b859] text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-md active:scale-95">
+                <MessageCircle size={16} /> Связаться с менеджером
+              </button>
+            </div>
           </div>
         )}
 
@@ -151,6 +173,9 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
                 </div>
               </div>
             )}
+            <button onClick={contactManager} className="mt-4 w-full flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#20b859] text-white rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-md active:scale-95">
+              <MessageCircle size={16} /> Связаться с менеджером
+            </button>
           </div>
         )}
 
@@ -162,7 +187,9 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               <span className="text-sm font-black text-gray-500 uppercase tracking-widest">Базовый</span>
             </div>
             <h3 className={cn("text-2xl font-black mb-2 relative z-10", textPrimaryClass)}>Покупки недоступны</h3>
-            <p className={cn("text-xs font-medium mb-6 relative z-10 w-5/6 leading-relaxed", textSecondaryClass)}>Вы можете просматривать каталог номеров, но для <b>оформления заказа и бронирования</b> необходимо приобрести VIP-статус.</p>
+            <p className={cn("text-xs font-medium mb-6 relative z-10 w-5/6 leading-relaxed", textSecondaryClass)}>
+              Вы можете просматривать каталог номеров, но для <b>оформления заказа и бронирования</b> необходимо приобрести VIP-статус.
+            </p>
             <div className="p-4 bg-[#111] rounded-2xl border border-gray-800 mb-6 relative z-10">
               <div className="flex justify-between items-center mb-1">
                 <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Стоимость</span>
@@ -170,10 +197,18 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               </div>
               <div className="text-2xl font-black italic tracking-tighter text-white">5 000 ₸</div>
             </div>
-            <a href={kaspiPaymentLink} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 py-4 mb-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all bg-[#F14635] text-white hover:bg-[#D93D2E] active:scale-95 shadow-[0_10px_25px_rgba(241,70,53,0.2)] relative z-10">
+            <a 
+              href={kaspiPaymentLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 py-4 mb-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all bg-[#F14635] text-white hover:bg-[#D93D2E] active:scale-95 shadow-[0_10px_25px_rgba(241,70,53,0.2)] relative z-10"
+            >
               <CreditCard size={18} /> Оплатить через Kaspi
             </a>
-            <button onClick={() => setIsInstructionsOpen(!isInstructionsOpen)} className="w-full flex items-center justify-between p-4 bg-[#111] border border-gray-800 rounded-2xl relative z-10 text-gray-400 hover:text-white transition-colors">
+            <button 
+              onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
+              className="w-full flex items-center justify-between p-4 bg-[#111] border border-gray-800 rounded-2xl relative z-10 text-gray-400 hover:text-white transition-colors"
+            >
               <span className="text-[10px] font-black uppercase tracking-widest">Что делать после оплаты?</span>
               <ChevronDown size={16} className={cn("transition-transform", isInstructionsOpen ? "rotate-180" : "")} />
             </button>
@@ -184,11 +219,21 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
                   <li>После успешного перевода нажмите кнопку <b className="text-white">«Я оплатил»</b> ниже.</li>
                   <li>Ожидайте проверки. Администратор моментально активирует ваш VIP статус.</li>
                 </ol>
-                <button onClick={handleBuyVip} disabled={isSending || isSent} className={cn("w-full flex items-center justify-center gap-2 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all", isSent ? "bg-green-500/10 text-green-500 border border-green-500/30" : "bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 active:scale-95 shadow-[0_5px_15px_rgba(212,175,55,0.2)]")}>
+                <button 
+                  onClick={handleBuyVip}
+                  disabled={isSending || isSent}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all",
+                    isSent ? "bg-green-500/10 text-green-500 border border-green-500/30" : "bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 active:scale-95 shadow-[0_5px_15px_rgba(212,175,55,0.2)]"
+                  )}
+                >
                   {isSending ? <span className="animate-pulse">Отправка...</span> : isSent ? <><CheckCircle2 size={16} /> Заявка у администратора</> : <><CheckCircle2 size={16} className="text-black" /> Я оплатил</>}
                 </button>
               </div>
             )}
+            <button onClick={contactManager} className="mt-4 w-full flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#20b859] text-white rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-md active:scale-95">
+              <MessageCircle size={16} /> Связаться с менеджером
+            </button>
           </div>
         )}
       </div>
