@@ -25,11 +25,11 @@ export const AuthView = () => {
   const inputRef3 = useRef<HTMLInputElement>(null);
   const inputRef4 = useRef<HTMLInputElement>(null);
 
-  // Возвращает 10 цифр (без +7)
-  const getPhone10 = () => {
+  // Возвращает 11 цифр (начинается с 7)
+  const getPhone11 = () => {
     const digits = part1 + part2 + part3 + part4;
     if (digits.length !== 10) return null;
-    return digits;
+    return '7' + digits;
   };
 
   const getDisplayPhone = () => {
@@ -49,8 +49,8 @@ export const AuthView = () => {
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleStartAuth = async () => {
-    const phone10 = getPhone10();
-    if (!phone10) {
+    const phone11 = getPhone11();
+    if (!phone11) {
       alert('Введите 10 цифр номера');
       return;
     }
@@ -65,16 +65,16 @@ export const AuthView = () => {
     if (mode === 'register') {
       const { error } = await supabase
         .from('auth_codes')
-        .insert([{ phone: phone10, code: sessionToken, is_verified: false, name: name.trim() }]);
+        .insert([{ phone: phone11, code: sessionToken, is_verified: false, name: name.trim() }]);
       setLoading(false);
       if (!error) setStep('verify');
       else alert('Ошибка при регистрации: ' + error.message);
     } else {
-      // Вход – обновляем код для существующего номера
+      // Вход – обновляем код
       const { error } = await supabase
         .from('auth_codes')
         .update({ code: sessionToken, is_verified: false })
-        .eq('phone', phone10);
+        .eq('phone', phone11);
       setLoading(false);
       if (!error) setStep('verify');
       else alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
@@ -83,19 +83,19 @@ export const AuthView = () => {
 
   useEffect(() => {
     if (step !== 'verify') return;
-    const phone10 = getPhone10();
-    if (!phone10) return;
+    const phone11 = getPhone11();
+    if (!phone11) return;
     const interval = setInterval(async () => {
       const { data, error } = await supabase
         .from('auth_codes')
         .select('is_verified, name, role, subscription, expiry_date, tg_user_id')
-        .eq('phone', phone10)
+        .eq('phone', phone11)
         .eq('code', code)
         .single();
       if (data?.is_verified) {
         clearInterval(interval);
         setUser({
-          phone: phone10,
+          phone: phone11,
           full_name: data.name || (mode === 'register' ? name : 'Пользователь'),
           role: data.role || 'USER',
           subscription: data.subscription || 'INACTIVE',
@@ -108,7 +108,7 @@ export const AuthView = () => {
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
-  // Стили
+  // Стили (адаптивные)
   const cardBg = isLight ? 'bg-white' : 'bg-[#0f0f0f]';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
@@ -211,7 +211,7 @@ export const AuthView = () => {
       ) : (
         <div className="space-y-6">
           <div className={cn("p-8 rounded-[2rem] border shadow-2xl relative overflow-hidden", cardBg, isLight ? 'border-gray-200' : 'border-gray-800')}>
-            <div className="w-16 h-16 bg-[#2AABEE]/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-[#2AABEE]/20">
+            <div className="w-16 h-16 bg-[#2AABEE]/10 rounded-[1.5rem] flex items-center justifyContent center mx-auto mb-6 border border-[#2AABEE]/20">
               <MessageSquare className="text-[#2AABEE]" size={28} />
             </div>
             <h2 className={titleClass}>Остался 1 шаг</h2>
