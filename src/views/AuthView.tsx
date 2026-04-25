@@ -31,14 +31,19 @@ export const AuthView = () => {
     return '7' + digits;
   };
 
-  const displayedPhone = getFullPhoneDigits() 
-    ? `+7 ${part1} ${part2} ${part3} ${part4}` 
-    : '+7 ___ ___ __ __';
+  // Функция для отображения номера с плейсхолдером, если поля пусты
+  const getDisplayedPhone = () => {
+    const p1 = part1 || '___';
+    const p2 = part2 || '___';
+    const p3 = part3 || '__';
+    const p4 = part4 || '__';
+    return `+7 ${p1} ${p2} ${p3} ${p4}`;
+  };
 
-  const handlePartChange = (value: string, setter: React.Dispatch<React.SetStateAction<string>>, nextRef?: React.RefObject<HTMLInputElement>) => {
-    const digits = value.replace(/\D/g, '');
+  const handlePartChange = (value: string, setter: React.Dispatch<React.SetStateAction<string>>, maxLen: number, nextRef?: React.RefObject<HTMLInputElement>) => {
+    const digits = value.replace(/\D/g, '').slice(0, maxLen);
     setter(digits);
-    if (digits.length === (setter === setPart1 || setter === setPart2 ? 3 : 2) && nextRef) {
+    if (digits.length === maxLen && nextRef) {
       nextRef.current?.focus();
     }
   };
@@ -110,32 +115,39 @@ export const AuthView = () => {
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
-  const inputClass = cn(
-    "w-12 sm:w-14 h-12 text-center rounded-xl text-lg font-bold transition-all focus:ring-2 focus:ring-[#D4AF37]/50 outline-none",
+  // Единые стили для полей ввода
+  const inputFieldClass = cn(
+    "w-12 sm:w-14 h-12 text-center rounded-xl text-lg font-bold focus:ring-2 focus:ring-[#D4AF37]/50 outline-none transition-all",
     isLight
-      ? "bg-gray-100 text-gray-900 border border-gray-300 focus:border-[#D4AF37]"
-      : "bg-[#1A1A1A] text-white border border-gray-600 focus:border-[#D4AF37]"
+      ? "bg-white text-black border border-gray-300 focus:border-[#D4AF37]"
+      : "bg-[#1a1a1a] text-white border border-gray-700 focus:border-[#D4AF37]"
   );
+
+  // Стили для текстовых заголовков
+  const titleClass = cn("text-3xl font-black uppercase italic tracking-tighter", isLight ? "text-gray-900" : "text-white");
+  const subtitleClass = cn("text-[10px] font-bold uppercase tracking-[0.2em]", isLight ? "text-gray-500" : "text-gray-400");
 
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
       {step === 'phone' ? (
         <Card className="p-8 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#D4AF37]/30" />
-          <div className="w-16 h-16 bg-gray-50 dark:bg-[#1A1A1A] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-gray-100 dark:border-gray-800 shadow-inner">
+          <div className={cn("w-16 h-16 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border shadow-inner", 
+            isLight ? "bg-gray-100 border-gray-300" : "bg-[#1a1a1a] border-gray-700")}>
             {mode === 'register' ? (
-              <Smartphone className="text-gray-900 dark:text-white" size={28} />
+              <Smartphone className={isLight ? "text-gray-700" : "text-white"} size={28} />
             ) : (
               <RefreshCcw className="text-[#D4AF37]" size={28} />
             )}
           </div>
-          <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 uppercase italic tracking-tighter">
+          <h2 className={titleClass}>
             {mode === 'register' ? 'Аккаунт' : 'Вход'}
           </h2>
-          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-8">
+          <p className={subtitleClass}>
             {mode === 'register' ? 'Создание профиля' : 'Восстановление доступа'}
           </p>
-          <div className="space-y-6">
+
+          <div className="space-y-6 mt-8">
             {mode === 'register' && (
               <input 
                 type="text" 
@@ -143,54 +155,55 @@ export const AuthView = () => {
                 className={cn(
                   "w-full rounded-2xl p-4 text-center text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50",
                   isLight
-                    ? "bg-gray-100 text-gray-900 border border-gray-300"
-                    : "bg-[#1A1A1A] text-white border border-gray-600"
+                    ? "bg-white text-black border border-gray-300 placeholder:text-gray-400"
+                    : "bg-[#1a1a1a] text-white border border-gray-700 placeholder:text-gray-500"
                 )}
                 value={name} 
                 onChange={(e) => setName(e.target.value)}
               />
             )}
             <div>
-              <div className="text-gray-500 text-xs mb-2 text-left">Введите номер телефона:</div>
+              <div className={cn("text-xs mb-2 text-left", isLight ? "text-gray-600" : "text-gray-400")}>Введите номер телефона:</div>
               <div className="flex items-center justify-center gap-2 flex-wrap">
-                <span className={cn("text-2xl font-bold mr-1", isLight ? "text-gray-900" : "text-white")}>+7</span>
+                <span className={cn("text-2xl font-bold", isLight ? "text-gray-800" : "text-white")}>+7</span>
                 <input
                   ref={inputRef1}
                   type="text"
                   maxLength={3}
-                  className={inputClass}
+                  className={inputFieldClass}
                   value={part1}
-                  onChange={(e) => handlePartChange(e.target.value, setPart1, inputRef2)}
+                  onChange={(e) => handlePartChange(e.target.value, setPart1, 3, inputRef2)}
                 />
-                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-500")}>-</span>
+                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-600")}>-</span>
                 <input
                   ref={inputRef2}
                   type="text"
                   maxLength={3}
-                  className={inputClass}
+                  className={inputFieldClass}
                   value={part2}
-                  onChange={(e) => handlePartChange(e.target.value, setPart2, inputRef3)}
+                  onChange={(e) => handlePartChange(e.target.value, setPart2, 3, inputRef3)}
                 />
-                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-500")}>-</span>
+                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-600")}>-</span>
                 <input
                   ref={inputRef3}
                   type="text"
                   maxLength={2}
-                  className={inputClass}
+                  className={inputFieldClass}
                   value={part3}
-                  onChange={(e) => handlePartChange(e.target.value, setPart3, inputRef4)}
+                  onChange={(e) => handlePartChange(e.target.value, setPart3, 2, inputRef4)}
                 />
-                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-500")}>-</span>
+                <span className={cn("text-xl", isLight ? "text-gray-400" : "text-gray-600")}>-</span>
                 <input
                   ref={inputRef4}
                   type="text"
                   maxLength={2}
-                  className={inputClass}
+                  className={inputFieldClass}
                   value={part4}
-                  onChange={(e) => handlePartChange(e.target.value, setPart4)}
+                  onChange={(e) => handlePartChange(e.target.value, setPart4, 2)}
                 />
               </div>
             </div>
+
             <Button 
               fullWidth 
               size="lg" 
@@ -198,7 +211,7 @@ export const AuthView = () => {
               disabled={loading} 
               onClick={handleStartAuth}
             >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : "Продолжить"}
+              {loading ? <Loader2 size={18} className="animate-spin ml-2" /> : "Продолжить"}
             </Button>
             <button 
               onClick={() => {
@@ -206,7 +219,7 @@ export const AuthView = () => {
                 setName('');
                 setPart1(''); setPart2(''); setPart3(''); setPart4('');
               }}
-              className="text-[10px] text-[#D4AF37] font-black uppercase tracking-widest pt-4 hover:opacity-70 transition-opacity"
+              className={cn("text-[10px] font-black uppercase tracking-widest pt-4 hover:opacity-70 transition-opacity", isLight ? "text-[#D4AF37]" : "text-[#D4AF37]")}
             >
               {mode === 'register' ? '✨ У меня уже есть аккаунт' : '👤 Создать новый аккаунт'}
             </button>
@@ -214,15 +227,15 @@ export const AuthView = () => {
         </Card>
       ) : (
         <div className="space-y-6">
-          <Card className="p-8 border-[#D4AF37]/30 shadow-2xl relative overflow-hidden">
+          <Card className="p-8 shadow-2xl relative overflow-hidden">
             <div className="w-16 h-16 bg-[#2AABEE]/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-[#2AABEE]/20">
               <MessageSquare className="text-[#2AABEE]" size={28} />
             </div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1 uppercase italic tracking-tighter">Остался 1 шаг</h2>
-            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-8">{displayedPhone}</p>
-            <div className="bg-gray-50 dark:bg-[#1A1A1A] rounded-[2rem] p-6 mb-8 border border-gray-100 dark:border-gray-800 shadow-inner">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
-                Перейдите в Telegram и нажмите кнопку <br/><span className="text-gray-900 dark:text-white">«📱 Подтвердить номер»</span>
+            <h2 className={titleClass}>Остался 1 шаг</h2>
+            <p className={subtitleClass}>{getDisplayedPhone()}</p>
+            <div className={cn("rounded-[2rem] p-6 mb-8 border shadow-inner", isLight ? "bg-gray-100 border-gray-300" : "bg-[#1a1a1a] border-gray-700")}>
+              <p className={cn("text-xs font-bold leading-relaxed", isLight ? "text-gray-600" : "text-gray-400")}>
+                Перейдите в Telegram и нажмите кнопку <br/><span className={isLight ? "text-black" : "text-white"}>«📱 Подтвердить номер»</span>
               </p>
             </div>
             <Button 
@@ -235,18 +248,19 @@ export const AuthView = () => {
             </Button>
             <div className="mt-8 flex items-center justify-center gap-3">
               <div className="flex gap-1.5">
-                <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce" />
-                <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce [animation-delay:0.4s]" />
+                <span className={cn("w-1.5 h-1.5 rounded-full animate-bounce", isLight ? "bg-gray-400" : "bg-gray-600")} />
+                <span className={cn("w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.2s]", isLight ? "bg-gray-400" : "bg-gray-600")} />
+                <span className={cn("w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.4s]", isLight ? "bg-gray-400" : "bg-gray-600")} />
               </div>
-              <span className="text-[10px] text-gray-400 font-black uppercase tracking-[0.15em]">Ожидаем подтверждения</span>
+              <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", isLight ? "text-gray-500" : "text-gray-400")}>Ожидаем подтверждения</span>
             </div>
           </Card>
           <button 
             onClick={() => setStep('phone')}
-            className="flex items-center justify-center gap-2 mx-auto text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] hover:text-[#D4AF37] transition-colors"
+            className="flex items-center justify-center gap-2 mx-auto text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-[#D4AF37]"
           >
-            <ArrowLeft size={14} /> Изменить номер
+            <ArrowLeft size={14} className={isLight ? "text-gray-500" : "text-gray-400"} /> 
+            <span className={isLight ? "text-gray-500" : "text-gray-400"}>Изменить номер</span>
           </button>
         </div>
       )}
