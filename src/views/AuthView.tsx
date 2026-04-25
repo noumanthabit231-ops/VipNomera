@@ -7,26 +7,48 @@ import { useGoldenApp } from '../hooks/useGoldenApp';
 
 const BOT_USERNAME = "vipvipnumbers_bot";
 
+// Функция для форматирования телефона: всегда +7 и 10 цифр
+const formatPhone = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 11); // максимум 11 цифр (7 + 10)
+  if (digits.length === 0) return '+7';
+  if (digits.startsWith('7')) {
+    const rest = digits.slice(1);
+    return '+7' + rest;
+  }
+  if (digits.length >= 1) {
+    return '+7' + digits;
+  }
+  return '+7';
+};
+
 export const AuthView = () => {
   const { setUser, setView } = useGoldenApp();
   const [mode, setMode] = useState<'register' | 'restore'>('register');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('+7');
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Обработчик ввода телефона: всегда +7 в начале
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value;
+    if (!raw.startsWith('+7')) raw = '+7' + raw.replace(/[^0-9]/g, '');
+    const formatted = formatPhone(raw);
+    setPhone(formatted);
+  };
+
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleStartAuth = async () => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    
-    if (mode === 'register' && !name.trim()) {
-      alert("Пожалуйста, введите ваше имя");
+    let cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.startsWith('7') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
+    if (cleanPhone.length !== 10) {
+      alert('Введите 10 цифр после +7');
       return;
     }
-    if (cleanPhone.length < 10) {
-      alert("Введите корректный номер телефона (например, 7702...)");
+    if (mode === 'register' && !name.trim()) {
+      alert("Пожалуйста, введите ваше имя");
       return;
     }
     
@@ -66,7 +88,6 @@ export const AuthView = () => {
 
       if (data?.is_verified) {
         clearInterval(interval);
-        
         const userData = { 
           phone: cleanPhone, 
           full_name: data.name || (mode === 'register' ? name : 'Пользователь'), 
@@ -75,7 +96,6 @@ export const AuthView = () => {
           expiry_date: data.expiry_date,
           tg_user_id: data.tg_user_id,
         };
-
         setUser(userData);
         setView('catalog');
       }
@@ -87,7 +107,7 @@ export const AuthView = () => {
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
       {step === 'phone' ? (
-        <Card className="p-10 shadow-2xl relative overflow-hidden bg-white border-none dark:bg-[#0F0F0F] dark:border-white/5">
+        <Card className="p-10 shadow-2xl relative overflow-hidden bg-white dark:bg-[#0F0F0F] dark:border-white/5">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#D4AF37]/30" />
           
           <div className="w-16 h-16 bg-gray-50 dark:bg-[#1A1A1A] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-gray-100 dark:border-gray-800 shadow-inner">
@@ -121,7 +141,7 @@ export const AuthView = () => {
               placeholder="+7 (7xx) xxx-xx-xx" 
               className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-2 border-transparent rounded-2xl p-5 text-gray-900 dark:text-white font-bold text-center outline-none focus:border-[#D4AF37]/20 focus:bg-white dark:focus:bg-[#0F0F0F] transition-all text-lg"
               value={phone} 
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={handlePhoneChange}
             />
 
             <Button 
@@ -155,7 +175,7 @@ export const AuthView = () => {
             
             <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1 uppercase italic tracking-tighter">Остался 1 шаг</h2>
             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-8">
-               +{phone.replace(/\D/g, '')}
+               {phone}
             </p>
 
             <div className="bg-gray-50 dark:bg-[#1A1A1A] rounded-[2rem] p-6 mb-8 border border-gray-100 dark:border-gray-800 shadow-inner">
