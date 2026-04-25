@@ -7,14 +7,13 @@ import {
 import { cn } from '../cn';
 import { supabase } from '../supabase';
 
-// Принимает 10 цифр, возвращает +7 XXX XXX XX XX
 const formatDisplay = (phoneDigits: string): string => {
   if (!phoneDigits) return '+7';
-  const digits = phoneDigits.replace(/\D/g, '');
-  if (digits.length === 10) {
-    return `+7 ${digits.slice(0,3)} ${digits.slice(3,6)} ${digits.slice(6,8)} ${digits.slice(8,10)}`;
-  }
-  return `+7 ${digits}`;
+  let d = phoneDigits.replace(/\D/g, '');
+  if (d.length === 10) return `+7 ${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
+  if (d.length === 11 && d.startsWith('7')) d = d.slice(1);
+  if (d.length === 10) return `+7 ${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
+  return `+${d}`;
 };
 
 const getDaysDiff = (expiryStr: string) => {
@@ -40,7 +39,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
   const [localVIP, setLocalVIP] = useState(user?.subscription === 'ACTIVE');
 
-  // Нормализуем номер к 10 цифрам
   const getPhoneDigits = (): string => {
     if (!user?.phone) return '';
     let digits = user.phone.replace(/\D/g, '');
@@ -52,13 +50,11 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const refreshUserStatus = async () => {
     const digits = getPhoneDigits();
     if (!digits) return;
-    console.log('🔍 Checking VIP status for phone:', digits);
     const { data, error } = await supabase
       .from('auth_codes')
       .select('subscription, expiry_date, role')
       .eq('phone', digits)
       .maybeSingle();
-    console.log('📦 Data from DB:', data, error);
     if (data && !error) {
       if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
         setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
@@ -66,8 +62,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
         alert('✅ VIP статус обновлён!');
       } else {
         setLocalVIP(data.subscription === 'ACTIVE');
-        if (data.subscription === 'ACTIVE') alert('VIP уже активен.');
-        else alert('VIP не активен.');
       }
     } else {
       alert('Ошибка получения статуса.');
@@ -83,18 +77,16 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const isAdmin = user?.role === 'ADMIN';
   const isVIP = localVIP || isAdmin;
   const daysLeft = getDaysDiff(user?.expiry_date);
-  const phoneDigits = getPhoneDigits();
-  const displayPhone = formatDisplay(phoneDigits);
+  const displayPhone = formatDisplay(getPhoneDigits());
 
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
   const sendPaymentNotification = async () => {
     const digits = getPhoneDigits();
     if (!digits) return false;
-
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 3 500 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
     const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
-    const contactUrl = `https://t.me/+${digits}`;
+    const contactUrl = `https://t.me/+7${digits}`;
     const reply_markup = {
       inline_keyboard: [[
         { text: "✅ Подтвердить VIP", url: vipConfirmUrl },
@@ -140,7 +132,8 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   };
 
   const contactManager = () => {
-    window.open('https://wa.me/77077977767', '_blank');
+    // Номер менеджера: 77077977767 (10 цифр)
+    window.open('https://t.me/+77077977767', '_blank');
   };
 
   const bgClass = isLight ? "bg-white" : "bg-[#050505]";
