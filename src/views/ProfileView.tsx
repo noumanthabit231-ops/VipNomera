@@ -5,7 +5,6 @@ import {
   Settings, User as UserIcon, ChevronDown, CreditCard
 } from 'lucide-react';
 import { cn } from '../cn';
-import { supabase } from '../supabase';
 
 // Функция для подсчета дней
 const getDaysDiff = (expiryStr: string) => {
@@ -37,19 +36,30 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const isVIP = user?.subscription === 'ACTIVE' || isAdmin;
   const daysLeft = getDaysDiff(user?.expiry_date);
 
-  // Достаем ссылку на Kaspi из .env
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
-  // Данные для двух ботов
+  // Данные для двух ботов (основной и дополнительный)
   const tgTokens = [
     { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
     { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
   ];
 
-  // Отправка уведомления в оба Telegram-чата
+  // Отправка уведомления с инлайн-кнопкой в Telegram
   const sendPaymentNotification = async () => {
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
     
+    // Inline-клавиатура с кнопкой подтверждения
+    const keyboard = {
+      inline_keyboard: [
+        [
+          {
+            text: "✅ Подтвердить VIP",
+            callback_data: JSON.stringify({ action: 'confirm', userPhone: user?.phone })
+          }
+        ]
+      ]
+    };
+
     const results = await Promise.all(
       tgTokens.map(async ({ token, chatId }) => {
         if (!token || !chatId) return false;
@@ -57,7 +67,12 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
           const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
+            body: JSON.stringify({
+              chat_id: chatId,
+              text,
+              parse_mode: 'Markdown',
+              reply_markup: keyboard,
+            }),
           });
           return res.ok;
         } catch {
@@ -66,7 +81,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
       })
     );
     
-    // Успешно, если хотя бы одно уведомление доставлено (или оба)
     return results.some(ok => ok === true);
   };
 
