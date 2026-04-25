@@ -14,7 +14,6 @@ const getDaysDiff = (expiryStr: string) => {
   const today = new Date();
   const expiry = new Date(expiryStr);
   
-  // Обнуляем часы, чтобы считать полные сутки
   today.setHours(0, 0, 0, 0);
   expiry.setHours(0, 0, 0, 0);
   
@@ -318,8 +317,12 @@ export const AdminView = ({
                     <MessageSquare size={16} /> WhatsApp
                   </button>
                   
+                  {/* ИСПРАВЛЕНА ССЫЛКА TELEGRAM */}
                   <button 
-                    onClick={() => window.open(`https://t.me/+${o.user_phone.replace(/\D/g, '')}`, '_blank')}
+                    onClick={() => {
+                      const cleanPhone = o.user_phone.replace(/\D/g, '');
+                      window.open(`https://t.me/+7${cleanPhone}`, '_blank');
+                    }}
                     className="flex-1 flex items-center justify-center gap-2 py-4 bg-[#0088CC]/10 text-[#0088CC] rounded-2xl border border-[#0088CC]/20 font-black uppercase text-[10px] tracking-widest hover:bg-[#0088CC]/20 transition-all"
                   >
                     <Send size={16} /> Telegram
@@ -376,7 +379,6 @@ export const AdminView = ({
                       <h3 className="text-xl font-black text-white italic tracking-tighter">{c.name || 'Аноним'}</h3>
                       <p className="text-[#D4AF37] font-bold text-sm tracking-widest uppercase mt-1">+{c.phone}</p>
                       
-                      {/* СЧЕТЧИК ДНЕЙ */}
                       {hasExpiry && daysInfo && (
                         <div className="mt-3">
                           <p className="text-[9px] font-bold uppercase tracking-widest text-gray-500">
