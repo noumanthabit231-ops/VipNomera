@@ -5,7 +5,7 @@ import {
   Settings, User as UserIcon, ChevronDown, CreditCard
 } from 'lucide-react';
 import { cn } from '../cn';
-import { supabase } from '../supabase'; // для отправки уведомления админу
+import { supabase } from '../supabase';
 
 // Функция для подсчета дней
 const getDaysDiff = (expiryStr: string) => {
@@ -39,28 +39,35 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
 
   // Достаем ссылку на Kaspi из .env
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
-  // ID чата админа и токен бота (из .env)
-  const TG_BOT_TOKEN = import.meta.env.VITE_TG_BOT_TOKEN;
-  const TG_CHAT_ID = import.meta.env.VITE_TG_CHAT_ID;
 
-  // Отправка уведомления админу через Telegram
+  // Данные для двух ботов
+  const tgTokens = [
+    { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
+    { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
+  ];
+
+  // Отправка уведомления в оба Telegram-чата
   const sendPaymentNotification = async () => {
-    if (!TG_BOT_TOKEN || !TG_CHAT_ID) {
-      console.error('Telegram credentials missing');
-      return false;
-    }
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
-    const url = `https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`;
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: TG_CHAT_ID, text, parse_mode: 'Markdown' })
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
+    
+    const results = await Promise.all(
+      tgTokens.map(async ({ token, chatId }) => {
+        if (!token || !chatId) return false;
+        try {
+          const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
+          });
+          return res.ok;
+        } catch {
+          return false;
+        }
+      })
+    );
+    
+    // Успешно, если хотя бы одно уведомление доставлено (или оба)
+    return results.some(ok => ok === true);
   };
 
   const handleLogout = () => {
