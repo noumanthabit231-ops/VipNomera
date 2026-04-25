@@ -44,67 +44,64 @@ export const AuthView = () => {
 
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-  handleStartAuth = async () => {
-  const phone10 = getPhone10();
-  if (!phone10) {
-    alert('Введите 10 цифр номера');
-    return;
-  }
-  if (mode === 'register' && !name.trim()) {
-    alert('Пожалуйста, введите ваше имя');
-    return;
-  }
-  setLoading(true);
-  const sessionToken = generateSessionToken();
-  setCode(sessionToken);
-
-  // Проверяем, существует ли уже запись с таким номером
-  const { data: existing, error: fetchError } = await supabase
-    .from('auth_codes')
-    .select('id, is_verified, name')
-    .eq('phone', phone10)
-    .maybeSingle();
-
-  if (mode === 'register') {
-    // При регистрации номер не должен существовать
-    if (existing) {
-      setLoading(false);
-      alert('Этот номер уже зарегистрирован. Войдите в аккаунт (режим "У меня уже есть аккаунт").');
+  const handleStartAuth = async () => {
+    const phone10 = getPhone10();
+    if (!phone10) {
+      alert('Введите 10 цифр номера');
       return;
     }
-    // Создаём новую запись
-    const { error } = await supabase.from('auth_codes').insert([{
-      phone: phone10,
-      code: sessionToken,
-      is_verified: false,
-      name: name.trim(),
-    }]);
-    setLoading(false);
-    if (!error) setStep('verify');
-    else alert('Ошибка при регистрации: ' + error.message);
-  } else { // режим восстановления
-    if (!existing) {
-      setLoading(false);
-      alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
+    if (mode === 'register' && !name.trim()) {
+      alert('Пожалуйста, введите ваше имя');
       return;
     }
-    // Обновляем существующую запись: новый код, сбрасываем верификацию
-    const { error } = await supabase
+    setLoading(true);
+    const sessionToken = generateSessionToken();
+    setCode(sessionToken);
+
+    // Проверяем, есть ли уже запись с таким номером
+    const { data: existing, error: fetchError } = await supabase
       .from('auth_codes')
-      .update({ code: sessionToken, is_verified: false })
-      .eq('id', existing.id);
-    setLoading(false);
-    if (!error) setStep('verify');
-    else alert('Ошибка при обновлении: ' + error.message);
-  }
-};
+      .select('id, is_verified, name')
+      .eq('phone', phone10)
+      .maybeSingle();
 
+    if (mode === 'register') {
+      // Регистрация нового пользователя
+      if (existing) {
+        setLoading(false);
+        alert('Этот номер уже зарегистрирован. Пожалуйста, войдите через "У меня уже есть аккаунт".');
+        return;
+      }
+      const { error } = await supabase.from('auth_codes').insert([{
+        phone: phone10,
+        code: sessionToken,
+        is_verified: false,
+        name: name.trim(),
+      }]);
+      setLoading(false);
+      if (!error) setStep('verify');
+      else alert('Ошибка при регистрации: ' + error.message);
+    } else {
+      // Восстановление доступа – обновляем существующую запись
+      if (!existing) {
+        setLoading(false);
+        alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
+        return;
+      }
+      const { error } = await supabase
+        .from('auth_codes')
+        .update({ code: sessionToken, is_verified: false })
+        .eq('id', existing.id);
+      setLoading(false);
+      if (!error) setStep('verify');
+      else alert('Ошибка при обновлении: ' + error.message);
+    }
+  };
 
   useEffect(() => {
     if (step !== 'verify') return;
     const phone10 = getPhone10();
     if (!phone10) return;
-    
     const interval = setInterval(async () => {
       const { data, error } = await supabase
         .from('auth_codes')
@@ -112,7 +109,6 @@ export const AuthView = () => {
         .eq('phone', phone10)
         .eq('code', code)
         .single();
-      
       if (data?.is_verified) {
         clearInterval(interval);
         setUser({
@@ -126,7 +122,6 @@ export const AuthView = () => {
         setView('catalog');
       }
     }, 2000);
-    
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
