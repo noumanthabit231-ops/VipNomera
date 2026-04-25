@@ -7,41 +7,43 @@ import { useGoldenApp } from '../hooks/useGoldenApp';
 
 const BOT_USERNAME = "vipvipnumbers_bot";
 
-// Функция для форматирования телефона: всегда +7 и 10 цифр
-const formatPhone = (value: string) => {
-  const digits = value.replace(/\D/g, '').slice(0, 11); // максимум 11 цифр (7 + 10)
+// Приводит номер к каноническому виду: 10 цифр без 7 (как в базе)
+const normalizePhone = (phone: string): string => {
+  let digits = phone.replace(/\D/g, '');
+  // Если номер начинается с 7 и длина 11, убираем первую 7
+  if (digits.startsWith('7') && digits.length === 11) digits = digits.slice(1);
+  return digits;
+};
+
+// Для отображения в поле ввода: всегда +7
+const formatDisplayPhone = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
   if (digits.length === 0) return '+7';
   if (digits.startsWith('7')) {
     const rest = digits.slice(1);
     return '+7' + rest;
   }
-  if (digits.length >= 1) {
-    return '+7' + digits;
-  }
-  return '+7';
+  return '+7' + digits;
 };
 
 export const AuthView = () => {
   const { setUser, setView } = useGoldenApp();
   const [mode, setMode] = useState<'register' | 'restore'>('register');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('+7');
+  const [phoneDisplay, setPhoneDisplay] = useState('+7');
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Обработчик ввода телефона: всегда +7 в начале
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let raw = e.target.value;
-    if (!raw.startsWith('+7')) raw = '+7' + raw.replace(/[^0-9]/g, '');
-    const formatted = formatPhone(raw);
-    setPhone(formatted);
+    setPhoneDisplay(formatDisplayPhone(e.target.value));
   };
 
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleStartAuth = async () => {
-    let cleanPhone = phone.replace(/\D/g, '');
+    const rawPhone = phoneDisplay.replace(/\D/g, '');
+    let cleanPhone = rawPhone;
     if (cleanPhone.startsWith('7') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
     if (cleanPhone.length !== 10) {
       alert('Введите 10 цифр после +7');
@@ -56,6 +58,7 @@ export const AuthView = () => {
     const sessionToken = generateSessionToken();
     setCode(sessionToken);
 
+    // Сохраняем в БД номер в формате 10 цифр (без 7)
     const { error } = await supabase
       .from('auth_codes')
       .insert([{ 
@@ -67,6 +70,7 @@ export const AuthView = () => {
 
     setLoading(false);
     if (!error) {
+      console.log(`Код отправлен, ждём подтверждения. Номер в БД: ${cleanPhone}`);
       setStep('verify');
     } else {
       console.error(error);
@@ -77,7 +81,10 @@ export const AuthView = () => {
   useEffect(() => {
     if (step !== 'verify') return;
 
-    const cleanPhone = phone.replace(/\D/g, '');
+    // Номер в каноническом виде (10 цифр) – должен совпадать с тем, что в БД
+    const cleanPhone = normalizePhone(phoneDisplay);
+    console.log(`Ожидаем верификации для номера: ${cleanPhone}, код: ${code}`);
+
     const interval = setInterval(async () => {
       const { data, error } = await supabase
         .from('auth_codes')
@@ -86,6 +93,7 @@ export const AuthView = () => {
         .eq('code', code)
         .single();
 
+      console.log('Polling result:', data, error);
       if (data?.is_verified) {
         clearInterval(interval);
         const userData = { 
@@ -102,14 +110,13 @@ export const AuthView = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [step, phone, code, name, mode, setUser, setView]);
+  }, [step, phoneDisplay, code, name, mode, setUser, setView]);
 
   return (
     <div className="pt-20 px-4 max-w-sm mx-auto text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
       {step === 'phone' ? (
         <Card className="p-10 shadow-2xl relative overflow-hidden bg-white dark:bg-[#0F0F0F] dark:border-white/5">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#D4AF37]/30" />
-          
           <div className="w-16 h-16 bg-gray-50 dark:bg-[#1A1A1A] rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-gray-100 dark:border-gray-800 shadow-inner">
             {mode === 'register' ? (
               <Smartphone className="text-gray-900 dark:text-white" size={28} />
@@ -117,14 +124,12 @@ export const AuthView = () => {
               <RefreshCcw className="text-[#D4AF37]" size={28} />
             )}
           </div>
-          
           <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 uppercase italic tracking-tighter">
             {mode === 'register' ? 'Аккаунт' : 'Вход'}
           </h2>
           <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-10">
             {mode === 'register' ? 'Создание профиля' : 'Восстановление доступа'}
           </p>
-          
           <div className="space-y-4">
             {mode === 'register' && (
               <input 
@@ -135,15 +140,13 @@ export const AuthView = () => {
                 onChange={(e) => setName(e.target.value)}
               />
             )}
-            
             <input 
               type="tel" 
-              placeholder="+7 (7xx) xxx-xx-xx" 
+              placeholder="+7 700 000 00 00" 
               className="w-full bg-gray-50 dark:bg-[#1A1A1A] border-2 border-transparent rounded-2xl p-5 text-gray-900 dark:text-white font-bold text-center outline-none focus:border-[#D4AF37]/20 focus:bg-white dark:focus:bg-[#0F0F0F] transition-all text-lg"
-              value={phone} 
+              value={phoneDisplay} 
               onChange={handlePhoneChange}
             />
-
             <Button 
               fullWidth 
               size="lg" 
@@ -157,7 +160,6 @@ export const AuthView = () => {
                 </div>
               ) : "Продолжить"}
             </Button>
-            
             <button 
               onClick={() => setMode(mode === 'register' ? 'restore' : 'register')}
               className="text-[10px] text-[#D4AF37] font-black uppercase tracking-widest pt-4 hover:opacity-70 transition-opacity"
@@ -172,18 +174,15 @@ export const AuthView = () => {
             <div className="w-16 h-16 bg-[#2AABEE]/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-[#2AABEE]/20">
               <MessageSquare className="text-[#2AABEE]" size={28} />
             </div>
-            
             <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1 uppercase italic tracking-tighter">Остался 1 шаг</h2>
             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-8">
-               {phone}
+               {phoneDisplay}
             </p>
-
             <div className="bg-gray-50 dark:bg-[#1A1A1A] rounded-[2rem] p-6 mb-8 border border-gray-100 dark:border-gray-800 shadow-inner">
               <p className="text-xs text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
                 Перейдите в Telegram и нажмите кнопку <br/><span className="text-gray-900 dark:text-white">«📱 Подтвердить номер»</span>
               </p>
             </div>
-
             <Button 
               fullWidth 
               size="lg" 
@@ -192,7 +191,6 @@ export const AuthView = () => {
             >
               <ExternalLink size={20} className="mr-2" /> Открыть Telegram
             </Button>
-            
             <div className="mt-8 flex items-center justify-center gap-3">
               <div className="flex gap-1.5">
                 <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce" />
@@ -202,7 +200,6 @@ export const AuthView = () => {
               <span className="text-[10px] text-gray-400 font-black uppercase tracking-[0.15em]">Ожидаем подтверждения</span>
             </div>
           </Card>
-
           <button 
             onClick={() => setStep('phone')}
             className="flex items-center justify-center gap-2 mx-auto text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] hover:text-[#D4AF37] transition-colors"
