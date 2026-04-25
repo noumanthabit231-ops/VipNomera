@@ -26,16 +26,24 @@ export const AuthView = () => {
   const { setUser, setView } = useGoldenApp();
   const [mode, setMode] = useState<'register' | 'restore'>('register');
   const [name, setName] = useState('');
-  const [phoneRaw, setPhoneRaw] = useState('');
+  const [part1, setPart1] = useState(''); // 3 цифры
+  const [part2, setPart2] = useState(''); // 3 цифры
+  const [part3, setPart3] = useState(''); // 2 цифры
+  const [part4, setPart4] = useState(''); // 2 цифры
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const inputRef1 = useRef<HTMLInputElement>(null);
+  const inputRef2 = useRef<HTMLInputElement>(null);
+  const inputRef3 = useRef<HTMLInputElement>(null);
+  const inputRef4 = useRef<HTMLInputElement>(null);
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
-    setPhoneRaw(digits);
+  const getFullPhoneDigits = () => {
+    const digits = part1 + part2 + part3 + part4;
+    if (digits.length !== 10) return null;
+    return '7' + digits; // 11 цифр для БД
   };
-
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleStartAuth = async () => {
