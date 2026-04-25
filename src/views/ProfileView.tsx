@@ -24,14 +24,22 @@ const getDaysDiff = (expiryStr: string) => {
   return { count: diffDays, word: getWord(Math.abs(diffDays)) };
 };
 
+// Функция для нормализации номера (только цифры, начинается с 7)
+const normalizePhoneForLink = (phone: string) => {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('7') && digits.length === 11) digits = digits.slice(1); // убираем лишнюю 7, если есть
+  if (!digits.startsWith('7')) digits = '7' + digits;
+  if (digits.length > 11) digits = digits.slice(0, 11);
+  return digits;
+};
+
 export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
 
-  // Функция обновления статуса из базы
   const refreshUserStatus = async () => {
-    if (!user?.phone) return;
+    if (!user?.phone) return false;
     const cleanPhone = user.phone.replace(/\D/g, '');
     const { data, error } = await supabase
       .from('auth_codes')
@@ -47,7 +55,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     return false;
   };
 
-  // Автообновление при загрузке и при возвращении на вкладку
   useEffect(() => {
     refreshUserStatus();
     const handleVisibilityChange = () => {
@@ -57,7 +64,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user?.phone]);
 
-  // Ручное обновление
   const handleManualRefresh = async () => {
     const updated = await refreshUserStatus();
     if (updated) alert('Статус обновлён!');
@@ -72,8 +78,10 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
   const sendPaymentNotification = async () => {
-    const cleanPhone = user?.phone?.replace(/\D/g, '');
+    let cleanPhone = user?.phone?.replace(/\D/g, '');
     if (!cleanPhone) return false;
+    if (cleanPhone.startsWith('7') && cleanPhone.length === 11) cleanPhone = cleanPhone.slice(1);
+    if (!cleanPhone.startsWith('7')) cleanPhone = '7' + cleanPhone;
 
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
     
@@ -135,6 +143,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     }
   };
 
+  // Кнопка связи с менеджером (WhatsApp) – будет только внутри шторки
   const contactManager = () => {
     window.open('https://wa.me/77077977767', '_blank');
   };
@@ -184,9 +193,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               <button onClick={() => setView('admin')} className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-[0_5px_20px_rgba(59,130,246,0.3)] active:scale-95">
                 <Settings size={16} /> Открыть Админ-панель
               </button>
-              <button onClick={contactManager} className="w-full flex items-center justify-center gap-2 py-4 bg-[#25D366] hover:bg-[#20b859] text-white rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all shadow-md active:scale-95">
-                <MessageCircle size={16} /> Связаться с менеджером
-              </button>
             </div>
           </div>
         )}
@@ -214,9 +220,6 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
                 </div>
               </div>
             )}
-            <button onClick={contactManager} className="mt-4 w-full flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#20b859] text-white rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-md active:scale-95">
-              <MessageCircle size={16} /> Связаться с менеджером
-            </button>
           </div>
         )}
 
@@ -238,6 +241,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               </div>
               <div className="text-2xl font-black italic tracking-tighter text-white">5 000 ₸</div>
             </div>
+
             <a 
               href={kaspiPaymentLink}
               target="_blank"
@@ -246,6 +250,20 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
             >
               <CreditCard size={18} /> Оплатить через Kaspi
             </a>
+
+            {/* Кнопка "Я оплатил" – теперь всегда видна, не в шторке */}
+            <button 
+              onClick={handleBuyVip}
+              disabled={isSending || isSent}
+              className={cn(
+                "w-full flex items-center justify-center gap-2 py-4 mb-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all",
+                isSent ? "bg-green-500/10 text-green-500 border border-green-500/30" : "bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 active:scale-95 shadow-[0_5px_15px_rgba(212,175,55,0.2)]"
+              )}
+            >
+              {isSending ? <span className="animate-pulse">Отправка...</span> : isSent ? <><CheckCircle2 size={16} /> Заявка у администратора</> : <><CheckCircle2 size={16} className="text-black" /> Я оплатил</>}
+            </button>
+
+            {/* Шторка "Что делать после оплаты?" – теперь только инструкции и кнопка "Связаться с менеджером" */}
             <button 
               onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
               className="w-full flex items-center justify-between p-4 bg-[#111] border border-gray-800 rounded-2xl relative z-10 text-gray-400 hover:text-white transition-colors"
@@ -253,28 +271,23 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
               <span className="text-[10px] font-black uppercase tracking-widest">Что делать после оплаты?</span>
               <ChevronDown size={16} className={cn("transition-transform", isInstructionsOpen ? "rotate-180" : "")} />
             </button>
+
             {isInstructionsOpen && (
               <div className="p-5 bg-[#151515] border border-gray-800 rounded-2xl mt-2 relative z-10 animate-in slide-in-from-top-2">
                 <ol className="text-xs text-gray-400 font-medium mb-5 space-y-3 list-decimal pl-4">
                   <li>Совершите перевод на сумму <b className="text-white">5 000 ₸</b> по кнопке Kaspi выше.</li>
-                  <li>После успешного перевода нажмите кнопку <b className="text-white">«Я оплатил»</b> ниже.</li>
+                  <li>После успешного перевода нажмите кнопку <b className="text-white">«Я оплатил»</b>.</li>
                   <li>Ожидайте проверки. Администратор моментально активирует ваш VIP статус.</li>
                 </ol>
+                {/* Кнопка "Связаться с менеджером" – только внутри шторки */}
                 <button 
-                  onClick={handleBuyVip}
-                  disabled={isSending || isSent}
-                  className={cn(
-                    "w-full flex items-center justify-center gap-2 py-4 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all",
-                    isSent ? "bg-green-500/10 text-green-500 border border-green-500/30" : "bg-gradient-to-r from-[#D4AF37] to-[#B58B22] text-black hover:opacity-90 active:scale-95 shadow-[0_5px_15px_rgba(212,175,55,0.2)]"
-                  )}
+                  onClick={contactManager}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#20b859] text-white rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-md active:scale-95"
                 >
-                  {isSending ? <span className="animate-pulse">Отправка...</span> : isSent ? <><CheckCircle2 size={16} /> Заявка у администратора</> : <><CheckCircle2 size={16} className="text-black" /> Я оплатил</>}
+                  <MessageCircle size={16} /> Связаться с менеджером
                 </button>
               </div>
             )}
-            <button onClick={contactManager} className="mt-4 w-full flex items-center justify-center gap-2 py-3 bg-[#25D366] hover:bg-[#20b859] text-white rounded-xl font-black uppercase text-[11px] tracking-widest transition-all shadow-md active:scale-95">
-              <MessageCircle size={16} /> Связаться с менеджером
-            </button>
           </div>
         )}
       </div>
