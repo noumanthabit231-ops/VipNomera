@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Crown, ShieldCheck, Lock, LogOut,
   ChevronLeft, Star, Clock, CheckCircle2,
@@ -34,76 +34,87 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
+  const [localVIP, setLocalVIP] = useState(user?.subscription === 'ACTIVE');
 
   const getPhoneDigits = (): string => {
     if (!user?.phone) return '';
     let digits = user.phone.replace(/\D/g, '');
-    if (!digits.startsWith('7')) digits = '7' + digits;
-    if (digits.length > 11) digits = digits.slice(0, 11);
+    if (digits.length === 10) digits = '7' + digits;
+    if (digits.length !== 11) digits = '7' + digits.slice(-10);
     return digits;
   };
 
   const refreshUserStatus = async () => {
     const digits = getPhoneDigits();
     if (!digits) return;
+    console.log('🔍 Checking VIP status for phone:', digits);
     const { data, error } = await supabase
       .from('auth_codes')
       .select('subscription, expiry_date, role')
       .eq('phone', digits)
       .maybeSingle();
+    console.log('📦 Data from DB:', data, error);
     if (data && !error) {
       if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
         setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
-        alert('✅ Статус обновлён!');
-      } else if (data.subscription === 'ACTIVE') {
-        alert('VIP уже активен. Если интерфейс не изменился, перезагрузите страницу (F5).');
+        setLocalVIP(data.subscription === 'ACTIVE');
+        alert('✅ VIP статус обновлён!');
       } else {
-        alert('VIP не активен.');
+        setLocalVIP(data.subscription === 'ACTIVE');
+        if (data.subscription === 'ACTIVE') alert('VIP уже активен.');
+        else alert('VIP не активен.');
       }
     } else {
       alert('Ошибка получения статуса.');
     }
   };
 
+  useEffect(() => {
+    refreshUserStatus(); // при загрузке
+    const interval = setInterval(refreshUserStatus, 10000); // каждые 10 секунд
+    return () => clearInterval(interval);
+  }, [user?.phone]);
+
   const isAdmin = user?.role === 'ADMIN';
-  const isVIP = user?.subscription === 'ACTIVE' || isAdmin;
+  const isVIP = localVIP || isAdmin;
   const daysLeft = getDaysDiff(user?.expiry_date);
   const displayPhone = formatDisplay(getPhoneDigits());
 
   const kaspiPaymentLink = import.meta.env.VITE_KASPI_LINK || 'https://kaspi.kz/';
 
   const sendPaymentNotification = async () => {
-  const digits = getPhoneDigits();
-  if (!digits) return false;
+    const digits = getPhoneDigits();
+    if (!digits) return false;
 
-  const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
-  const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
-  const contactUrl = `https://t.me/+${digits}`;
-  const reply_markup = {  // <-- ИСПРАВЛЕНО: переменная называется reply_markup
-    inline_keyboard: [[
-      { text: "✅ Подтвердить VIP", url: vipConfirmUrl },
-      { text: "📞 Связаться", url: contactUrl }
-    ]]
+    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+    const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
+    const contactUrl = `https://t.me/+${digits}`;
+    const reply_markup = {
+      inline_keyboard: [[
+        { text: "✅ Подтвердить VIP", url: vipConfirmUrl },
+        { text: "📞 Связаться", url: contactUrl }
+      ]]
+    };
+    const targets = [
+      { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
+      { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
+    ];
+    let success = false;
+    for (const { token, chatId } of targets) {
+      if (!token || !chatId) continue;
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown', reply_markup })
+        });
+        const data = await res.json();
+        if (data.ok) success = true;
+      } catch (err) { console.error(err); }
+    }
+    return success;
   };
-  const targets = [
-    { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
-    { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
-  ];
-  let success = false;
-  for (const { token, chatId } of targets) {
-    if (!token || !chatId) continue;
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown', reply_markup })
-      });
-      const data = await res.json();
-      if (data.ok) success = true;
-    } catch (err) { console.error(err); }
-  }
-  return success;
-};
+
   const handleLogout = () => {
     localStorage.removeItem('golden_v2_session');
     setUser(null);
