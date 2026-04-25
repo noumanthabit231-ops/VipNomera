@@ -42,13 +42,13 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     
     // Две кнопки: подтвердить и связаться (Telegram)
     const replyMarkup = {
-      inline_keyboard: [
-        [
-          { text: "✅ Подтвердить VIP", callback_data: `confirm_${cleanPhone}` },
-          { text: "📞 Связаться", url: `https://t.me/+${cleanPhone}` }
-        ]
-      ]
-    };
+  inline_keyboard: [
+    [
+      { text: "✅ Подтвердить VIP", url: `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${cleanPhone}` },
+      { text: "📞 Связаться", url: `https://t.me/+${cleanPhone}` }
+    ]
+  ]
+};
 
     const targets = [
       { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
