@@ -86,7 +86,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     const digits = getPhoneDigits();
     if (!digits) return false;
 
-    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 3 500 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
     const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
     const contactUrl = `https://t.me/+${digits}`;
     const reply_markup = {
@@ -228,7 +228,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
                 <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">Стоимость</span>
                 <span className="text-[#D4AF37] text-[10px] font-black uppercase tracking-widest">30 дней</span>
               </div>
-              <div className="text-2xl font-black italic tracking-tighter text-white">5 000 ₸</div>
+              <div className="text-2xl font-black italic tracking-tighter text-white">3 500 ₸</div>
             </div>
             <a href={kaspiPaymentLink} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 py-4 mb-3 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all bg-[#F14635] text-white hover:bg-[#D93D2E] active:scale-95 shadow-[0_10px_25px_rgba(241,70,53,0.2)] relative z-10">
               <CreditCard size={18} /> Оплатить через Kaspi
@@ -243,7 +243,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
             {isInstructionsOpen && (
               <div className="p-5 bg-[#151515] border border-gray-800 rounded-2xl mt-2 relative z-10 animate-in slide-in-from-top-2">
                 <ol className="text-xs text-gray-400 font-medium mb-5 space-y-3 list-decimal pl-4">
-                  <li>Совершите перевод на сумму <b className="text-white">5 000 ₸</b> по кнопке Kaspi выше.</li>
+                  <li>Совершите перевод на сумму <b className="text-white">3 500 ₸</b> по кнопке Kaspi выше.</li>
                   <li>После успешного перевода нажмите кнопку <b className="text-white">«Я оплатил»</b>.</li>
                   <li>Ожидайте проверки. Администратор моментально активирует ваш VIP статус.</li>
                 </ol>
