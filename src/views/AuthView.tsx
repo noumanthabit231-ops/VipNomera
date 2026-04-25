@@ -7,7 +7,7 @@ import { useGoldenApp } from '../hooks/useGoldenApp';
 
 const BOT_USERNAME = "vipvipnumbers_bot";
 
-// Приводит номер к каноническому виду: 10 цифр без +7
+// Приводит номер к каноническому виду: 10 цифр (убирает +7, пробелы, скобки)
 const toCanonical = (phone: string): string => {
   let digits = phone.replace(/\D/g, '');
   if (digits.startsWith('7') && digits.length === 11) digits = digits.slice(1);
@@ -15,7 +15,7 @@ const toCanonical = (phone: string): string => {
   return digits;
 };
 
-// Форматирует для отображения: +7 777 777 77 77
+// Для отображения: +7 777 777 77 77
 const formatDisplay = (digits: string): string => {
   if (!digits) return '+7';
   const d = digits.padStart(10, '0').slice(0, 10);
@@ -26,7 +26,7 @@ export const AuthView = () => {
   const { setUser, setView } = useGoldenApp();
   const [mode, setMode] = useState<'register' | 'restore'>('register');
   const [name, setName] = useState('');
-  const [phoneRaw, setPhoneRaw] = useState('');
+  const [phoneRaw, setPhoneRaw] = useState(''); // только цифры (10)
   const [step, setStep] = useState<'phone' | 'verify'>('phone');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,35 +52,41 @@ export const AuthView = () => {
     const sessionToken = generateSessionToken();
     setCode(sessionToken);
 
-    const { error } = await supabase
+    console.log('Saving to DB:', { phone: phoneRaw, code: sessionToken, name: name.trim(), is_verified: false });
+
+    const { data, error } = await supabase
       .from('auth_codes')
       .insert([{ 
         phone: phoneRaw,
         code: sessionToken,
         is_verified: false,
         name: mode === 'register' ? name.trim() : 'Клиент'
-      }]);
+      }])
+      .select();
 
-    setLoading(false);
-    if (!error) {
-      setStep('verify');
+    if (error) {
+      console.error('Insert error:', error);
+      alert("Ошибка при сохранении: " + error.message);
     } else {
-      console.error(error);
-      alert("Ошибка соединения с базой. Попробуйте еще раз.");
+      console.log('Insert success:', data);
+      setStep('verify');
     }
+    setLoading(false);
   };
 
   useEffect(() => {
     if (step !== 'verify') return;
 
     const interval = setInterval(async () => {
+      console.log('Polling for phone:', phoneRaw, 'code:', code);
       const { data, error } = await supabase
         .from('auth_codes')
         .select('is_verified, name, role, subscription, expiry_date, tg_user_id')
         .eq('phone', phoneRaw)
         .eq('code', code)
-        .single();
+        .maybeSingle();
 
+      console.log('Polling result:', data, error);
       if (data?.is_verified) {
         clearInterval(interval);
         const userData = {
