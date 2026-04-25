@@ -72,6 +72,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
           })
         });
         const data = await res.json();
+        console.log('Telegram send result:', data);
         if (data.ok) success = true;
       } catch (err) {
         console.error(err);
