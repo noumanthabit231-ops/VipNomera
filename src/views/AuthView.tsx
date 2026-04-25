@@ -25,13 +25,14 @@ export const AuthView = () => {
   const inputRef3 = useRef<HTMLInputElement>(null);
   const inputRef4 = useRef<HTMLInputElement>(null);
 
-  const getFullPhoneDigits = () => {
+  // Возвращает 10 цифр (без +7)
+  const getPhone10 = () => {
     const digits = part1 + part2 + part3 + part4;
     if (digits.length !== 10) return null;
-    return '7' + digits;
+    return digits;
   };
 
-  const getDisplayedPhone = () => {
+  const getDisplayPhone = () => {
     const p1 = part1 || '___';
     const p2 = part2 || '___';
     const p3 = part3 || '__';
@@ -48,8 +49,8 @@ export const AuthView = () => {
   const generateSessionToken = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleStartAuth = async () => {
-    const fullPhone = getFullPhoneDigits();
-    if (!fullPhone) {
+    const phone10 = getPhone10();
+    if (!phone10) {
       alert('Введите 10 цифр номера');
       return;
     }
@@ -64,15 +65,16 @@ export const AuthView = () => {
     if (mode === 'register') {
       const { error } = await supabase
         .from('auth_codes')
-        .insert([{ phone: fullPhone, code: sessionToken, is_verified: false, name: name.trim() }]);
+        .insert([{ phone: phone10, code: sessionToken, is_verified: false, name: name.trim() }]);
       setLoading(false);
       if (!error) setStep('verify');
       else alert('Ошибка при регистрации: ' + error.message);
     } else {
+      // Вход – обновляем код для существующего номера
       const { error } = await supabase
         .from('auth_codes')
         .update({ code: sessionToken, is_verified: false })
-        .eq('phone', fullPhone);
+        .eq('phone', phone10);
       setLoading(false);
       if (!error) setStep('verify');
       else alert('Пользователь не найден. Проверьте номер или зарегистрируйтесь.');
@@ -81,19 +83,19 @@ export const AuthView = () => {
 
   useEffect(() => {
     if (step !== 'verify') return;
-    const fullPhone = getFullPhoneDigits();
-    if (!fullPhone) return;
+    const phone10 = getPhone10();
+    if (!phone10) return;
     const interval = setInterval(async () => {
       const { data, error } = await supabase
         .from('auth_codes')
         .select('is_verified, name, role, subscription, expiry_date, tg_user_id')
-        .eq('phone', fullPhone)
+        .eq('phone', phone10)
         .eq('code', code)
         .single();
       if (data?.is_verified) {
         clearInterval(interval);
         setUser({
-          phone: fullPhone,
+          phone: phone10,
           full_name: data.name || (mode === 'register' ? name : 'Пользователь'),
           role: data.role || 'USER',
           subscription: data.subscription || 'INACTIVE',
@@ -106,7 +108,7 @@ export const AuthView = () => {
     return () => clearInterval(interval);
   }, [step, part1, part2, part3, part4, code, name, mode, setUser, setView]);
 
-  // Стили для светлой и тёмной темы
+  // Стили
   const cardBg = isLight ? 'bg-white' : 'bg-[#0f0f0f]';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
@@ -140,10 +142,7 @@ export const AuthView = () => {
               <input
                 type="text"
                 placeholder="Ваше имя"
-                className={cn(
-                  "w-full rounded-2xl p-4 text-center text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50",
-                  inputBg, textPrimary, inputBorder, "placeholder:text-gray-400"
-                )}
+                className={cn("w-full rounded-2xl p-4 text-center text-lg font-bold outline-none transition-all focus:ring-2 focus:ring-[#D4AF37]/50", inputBg, textPrimary, inputBorder, "placeholder:text-gray-400")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -216,7 +215,7 @@ export const AuthView = () => {
               <MessageSquare className="text-[#2AABEE]" size={28} />
             </div>
             <h2 className={titleClass}>Остался 1 шаг</h2>
-            <p className={subtitleClass}>{getDisplayedPhone()}</p>
+            <p className={subtitleClass}>{getDisplayPhone()}</p>
             <div className={cn("rounded-[2rem] p-6 mb-8 border", inputBg, inputBorder)}>
               <p className={cn("text-xs font-bold leading-relaxed", textSecondary)}>
                 Перейдите в Telegram и нажмите кнопку <br />
