@@ -29,6 +29,14 @@ export const CatalogView = ({
     }
   };
 
+  // Функция для получения текста меток по их id (берём первые две)
+  const getLabelTexts = (labelIds: string[]) => {
+    if (!labelIds || labelIds.length === 0) return [];
+    return labelIds
+      .map(id => labels.find(l => l.id === id)?.text)
+      .filter(Boolean) as string[];
+  };
+
   return (
     <div className="pt-6 space-y-5 pb-24 animate-in fade-in duration-700">
       
@@ -118,9 +126,10 @@ export const CatalogView = ({
           <p className="text-gray-500 font-bold tracking-wide text-xs">Совпадений не найдено</p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-2 px-2 sm:gap-3 sm:px-4">
+        <div className="grid grid-cols-2 gap-2 px-2 sm:gap-3 sm:px-4">
           {filteredPhones.map((phone: any, index: number) => {
             const isSold = phone.status === 'SOLD';
+            const labelTexts = getLabelTexts(phone.label_ids);
 
             return (
               <div 
@@ -144,13 +153,26 @@ export const CatalogView = ({
                    <div className={cn("h-full w-full transition-colors", isSold ? "bg-red-500" : "bg-[#D4AF37]")} />
                 </div>
 
-                <div className="absolute top-2 left-0 right-0 px-1.5 flex justify-between items-start z-30">
-                  <div className="flex flex-col gap-0.5">
-                     {phone.label_ids?.slice(0, 1).map((id: string) => {
-                       const label = labels.find((l: any) => l.id === id);
-                       return label && <div key={id} className="w-1.5 h-1.5 rounded-full shadow-[0_0_5px_rgba(212,175,55,0.5)]" style={{ backgroundColor: label.color }} />;
-                     })}
-                  </div>
+                {/* Метки – теперь текстовые бейджи вверху карточки */}
+                <div className="absolute top-2 left-0 right-0 px-2 flex justify-start gap-1 z-30">
+                  {labelTexts.slice(0, 2).map((text, idx) => {
+                    // находим цвет метки
+                    const labelColor = labels.find(l => l.text === text)?.color || '#D4AF37';
+                    return (
+                      <span 
+                        key={idx}
+                        className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md shadow-md"
+                        style={{ backgroundColor: `${labelColor}CC`, color: '#fff', textShadow: '0 0 1px black' }}
+                      >
+                        {text}
+                      </span>
+                    );
+                  })}
+                  {labelTexts.length > 2 && (
+                    <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md bg-black/60 text-white">
+                      +{labelTexts.length-2}
+                    </span>
+                  )}
                 </div>
 
                 <div className="relative z-10 h-full flex flex-col p-2 pt-4">
@@ -161,20 +183,19 @@ export const CatalogView = ({
                   </div>
 
                   <div className="mt-2">
-                {/* Уменьшаем шрифт и запрещаем перенос строки */}
-                <h3 className={cn(
-                  "text-[10px] sm:text-[11px] font-bold font-sans whitespace-nowrap transition-colors overflow-x-auto hide-scrollbar", 
-                  isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
-                )}>
-                  {phone.number}
-                </h3>
-                
-                <div className="flex items-center gap-1 mt-1">
-                  <span className="text-[10px] font-bold text-[#D4AF37] whitespace-nowrap">
-                    {phone.price.toLocaleString()} ₸
-                  </span>
-                </div>
-              </div>
+                    <h3 className={cn(
+                      "text-[13px] sm:text-[15px] font-bold transition-colors", 
+                      isLight ? "text-gray-900 group-hover:text-[#D4AF37]" : "text-white group-hover:text-[#D4AF37]"
+                    )}>
+                      {phone.number}
+                    </h3>
+                    
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[11px] font-bold text-[#D4AF37]">
+                        {phone.price.toLocaleString()} ₸
+                      </span>
+                    </div>
+                  </div>
 
                   <button 
                     disabled={isSold}
