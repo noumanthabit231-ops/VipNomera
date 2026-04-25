@@ -40,15 +40,17 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
 
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: +${user?.phone}\n💰 Сумма: 5 000 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
     
-    // Две кнопки: подтвердить и связаться (Telegram)
+    const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${cleanPhone}`;
+    const contactUrl = `https://t.me/+${cleanPhone}`;
+    
     const replyMarkup = {
-  inline_keyboard: [
-    [
-      { text: "✅ Подтвердить VIP", url: `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${cleanPhone}` },
-      { text: "📞 Связаться", url: `https://t.me/+${cleanPhone}` }
-    ]
-  ]
-};
+      inline_keyboard: [
+        [
+          { text: "✅ Подтвердить VIP", url: vipConfirmUrl },
+          { text: "📞 Связаться", url: contactUrl }
+        ]
+      ]
+    };
 
     const targets = [
       { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
