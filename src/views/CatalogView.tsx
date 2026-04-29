@@ -13,7 +13,10 @@ export const CatalogView = ({
   setSelectedPhone, setView, userOrders, isLight, toggleTheme
 }: any) => {
 
-  const hasSubscription = user?.subscription === 'ACTIVE' || user?.role === 'ADMIN';
+  // 🌟 СТРОГАЯ ПРОВЕРКА ПОДПИСКИ И ЕЕ СРОКА ДЕЙСТВИЯ 🌟
+  const hasSubscription = user?.role === 'ADMIN' || 
+    (user?.subscription === 'ACTIVE' && (!user?.expiry_date || new Date(user.expiry_date) > new Date()));
+    
   const totalPhones = phones?.length || 0;
 
   return (
@@ -92,7 +95,7 @@ export const CatalogView = ({
           </div>
           <h2 className={cn("text-2xl font-black uppercase tracking-tight mb-2", isLight ? "text-black" : "text-white")}>База закрыта</h2>
           <p className={cn("text-xs font-bold leading-relaxed mb-8", isLight ? "text-gray-500" : "text-gray-400")}>
-            Просмотр эксклюзивных золотых номеров доступен только участникам закрытого клуба.
+            Просмотр эксклюзивных золотых номеров доступен только участникам закрытого клуба. Оформите подписку для доступа.
           </p>
           <button 
             onClick={() => setView('subscription')}
