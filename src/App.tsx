@@ -30,11 +30,12 @@ export default function App() {
     setTimeout(() => setToast(null), 5000); 
   };
 
+  // 🌟 СТРОГАЯ ПРОВЕРКА ДЛЯ ШТОРКИ 🌟
   const hasAccess = useMemo(() => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
     const isActive = user.subscription === 'ACTIVE';
-    const isNotExpired = user.expiry_date ? new Date(user.expiry_date) > new Date() : false;
+    const isNotExpired = !user.expiry_date || new Date(user.expiry_date) > new Date();
     return isActive && isNotExpired;
   }, [user]);
 
@@ -64,7 +65,6 @@ export default function App() {
     }
   };
 
-  // 🔴 ЖЕСТКАЯ БЛОКИРОВКА ЕСЛИ НЕТ АККАУНТА 🔴
   if (!user) {
     return (
       <div className={cn(
@@ -174,10 +174,24 @@ export default function App() {
             </div>
             
             <div className="space-y-4 px-2">
-              <p className={cn("text-xs font-medium px-6", isLight ? "text-gray-500" : "text-gray-400")}>Для завершения покупки нажмите кнопку ниже — откроется чат с менеджером в WhatsApp.</p>
-              <Button fullWidth size="lg" className="py-6 text-lg bg-[#25D366] text-white hover:opacity-90 border-none font-bold rounded-2xl shadow-xl shadow-[#25D366]/10" onClick={handleWhatsAppOrder} disabled={isOrderSending}>
-                <MessageSquare size={22} className="mr-2" /> {isOrderSending ? "Связь..." : "Написать в WhatsApp"}
-              </Button>
+              {hasAccess ? (
+                <>
+                  <p className={cn("text-xs font-medium px-6", isLight ? "text-gray-500" : "text-gray-400")}>Для завершения покупки нажмите кнопку ниже — откроется чат с менеджером в WhatsApp.</p>
+                  <Button fullWidth size="lg" className="py-6 text-lg bg-[#25D366] text-white hover:opacity-90 border-none font-bold rounded-2xl shadow-xl shadow-[#25D366]/10" onClick={handleWhatsAppOrder} disabled={isOrderSending}>
+                    <MessageSquare size={22} className="mr-2" /> {isOrderSending ? "Связь..." : "Написать в WhatsApp"}
+                  </Button>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-red-500/10 text-red-400 p-5 rounded-2xl flex items-center justify-center gap-2 border border-red-500/20">
+                    <Lock size={16} />
+                    <span className="text-xs font-bold tracking-wide">Покупка доступна только для VIP</span>
+                  </div>
+                  <Button fullWidth size="lg" className="py-6 text-lg bg-[#D4AF37] text-black border-none font-bold rounded-2xl shadow-xl shadow-[#D4AF37]/10" onClick={() => { setSelectedPhone(null); setView('subscription'); }}>
+                    <Crown size={22} className="mr-2" /> Продлить подписку
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}
