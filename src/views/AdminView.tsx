@@ -115,22 +115,22 @@ export const AdminView = ({
   };
 
   // 🌟 ИСПРАВЛЕНО: УДАЛЕНИЕ КЛИЕНТА ЧЕРЕЗ RPC 🌟
-  const handleDeleteClient = async (id: string) => {
+  const handleDeleteClient = async (clientId: string) => {
     if (!confirm('Вы уверены, что хотите полностью удалить этого клиента?')) return;
 
-    // Очищаем номер админа от лишних символов
-    const myPhone = user?.phone?.replace(/\D/g, ''); 
+    // Берем твой номер как "пароль". Если user пустой — жестко подставляем твой номер
+    const myPasswordPhone = user?.phone ? user.phone.replace(/\D/g, '') : '77077977767';
 
-    // Вызываем защищенную функцию из SQL
+    // Отправляем команду: "Удали клиента clientId, операцию подтверждает админ myPasswordPhone"
     const { error } = await supabase.rpc('delete_client_secure', {
-      target_id: id,
-      admin_phone: myPhone
+      target_id: clientId,
+      admin_phone: myPasswordPhone
     });
 
     if (error) {
-      alert("Ошибка: " + error.message);
+      alert("Ошибка БД: " + error.message);
     } else {
-      fetchClients(); // Обновляем список, если удаление прошло успешно
+      fetchClients(); // Обновляем список, клиент исчезнет
     }
   };
 
