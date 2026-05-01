@@ -36,7 +36,7 @@ const getDaysDiff = (expiryStr: string) => {
 };
 
 export const AdminView = ({ 
-  phones, labels, fetchData, setView,
+  user, phones, labels, fetchData, setView,
   pn, setPn, pr, setPr, st, setSt, sl, setSl
 }: any) => {
   const [tab, setTab] = useState<'orders' | 'phones' | 'labels' | 'clients'>('phones');
@@ -114,10 +114,23 @@ export const AdminView = ({
     else alert("Ошибка при снятии VIP: " + error.message);
   };
 
+  // 🌟 ИСПРАВЛЕНО: УДАЛЕНИЕ КЛИЕНТА ЧЕРЕЗ RPC 🌟
   const handleDeleteClient = async (id: string) => {
-    if (confirm('Вы уверены, что хотите полностью удалить этого клиента?')) {
-      await supabase.from('auth_codes').delete().eq('id', id);
-      fetchClients();
+    if (!confirm('Вы уверены, что хотите полностью удалить этого клиента?')) return;
+
+    // Очищаем номер админа от лишних символов
+    const myPhone = user?.phone?.replace(/\D/g, ''); 
+
+    // Вызываем защищенную функцию из SQL
+    const { error } = await supabase.rpc('delete_client_secure', {
+      target_id: id,
+      admin_phone: myPhone
+    });
+
+    if (error) {
+      alert("Ошибка: " + error.message);
+    } else {
+      fetchClients(); // Обновляем список, если удаление прошло успешно
     }
   };
 
@@ -317,7 +330,6 @@ export const AdminView = ({
                     <MessageSquare size={16} /> WhatsApp
                   </button>
                   
-                  {/* ИСПРАВЛЕНА ССЫЛКА TELEGRAM */}
                   <button 
                     onClick={() => {
                       const cleanPhone = o.user_phone.replace(/\D/g, '');
