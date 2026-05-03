@@ -7,7 +7,7 @@ import { supabase } from '../supabase';
 
 const KASPI_PAY_LINK = "https://pay.kaspi.kz/pay/nlgccild";
 
-export const SubscriptionView = ({ setView, user }: any) => {
+export const SubscriptionView = ({ setView, user, onNotify }: any) => {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -17,6 +17,7 @@ export const SubscriptionView = ({ setView, user }: any) => {
     try {
       const cleanPhone = user?.phone?.replace(/\D/g, '') || '';
       
+      // 1. Сохраняем в Supabase
       const { error } = await supabase.from('custom_orders').insert([{
         user_phone: cleanPhone,
         user_name: user?.full_name || user?.name || 'Клиент',
@@ -25,12 +26,19 @@ export const SubscriptionView = ({ setView, user }: any) => {
         status: 'NEW'
       }]);
 
-      if (!error) {
-        setSent(true);
-        alert("Заявка отправлена администратору! Доступ будет активирован после проверки оплаты.");
-      } else {
-        alert("Ошибка базы данных: " + error.message);
+      if (error) {
+        alert("Ошибка БД: " + error.message + " (Вам нужно выполнить SQL запрос в Supabase для разрешения записи)");
+        setLoading(false);
+        return;
       }
+
+      // 2. Отправляем в Telegram
+      if (typeof onNotify === 'function') {
+        await onNotify();
+      }
+
+      setSent(true);
+      alert("Заявка отправлена администратору! Доступ будет активирован после проверки оплаты.");
     } catch (error) {
       console.error(error);
       alert("Произошла ошибка. Проверьте интернет-соединение.");
