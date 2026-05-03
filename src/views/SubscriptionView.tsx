@@ -5,47 +5,106 @@ import { Button } from '../components/ui/Button';
 import { cn } from '../cn';
 import { supabase } from '../supabase';
 
-const KASPI_PAY_LINK = "https://pay.kaspi.kz/pay/nlgccild";
+const normalizePhone = (phone: string): string => {
+  let digits = phone?.replace(/\D/g, '') || '';
+  if (digits.length === 11 && digits.startsWith('7')) digits = digits.slice(1);
+  if (digits.length > 10) digits = digits.slice(-10);
+  return digits;
+};
 
-export const SubscriptionView = ({ setView, user, onNotify }: any) => {
+const formatDisplay = (phoneDigits: string): string => {
+  if (!phoneDigits) return '+7';
+  const d = phoneDigits.padStart(10, '0').slice(0, 10);
+  return `+7 ${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
+};
+
+export const SubscriptionView = ({ setView, user }: any) => {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const handlePaidNotification = async () => {
-
-    if (sent) return;
-
-    setLoading(true);
-
-    try {
-
-      const success = await onNotify();
-
-      if (success) {
-
-        setSent(true);
-
-        alert("Заявка отправлена администратору! Доступ будет активирован после проверки оплаты.");
-
-      } else {
-
-        alert("Ошибка при отправке уведомления. Попробуйте еще раз или напишите в поддержку.");
-
-      }
-
-    } catch (error) {
-
-      console.error(error);
-
-      alert("Произошла ошибка. Проверьте интернет-соединение.");
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
+  const getPhoneDigits = (): string => {
+    if (!user?.phone) return '';
+    return normalizePhone(user.phone);
   };
+
+  const activateVipDirectly = async () => {
+    const digits = getPhoneDigits();
+    if (!digits) return false;
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+    
+    const { error } = await supabase
+      .from('auth_codes')
+      .update({ subscription: 'ACTIVE', expiry_date: expiryDate.toISOString() })
+      .eq('phone', digits)
+      .eq('is_verified', true);
+      
+    return !error;
+  };
+
+  const sendPaymentNotification = async () => {
+    const digits = getPhoneDigits();
+    if (!digits) return false;
+    
+    const displayPhone = formatDisplay(digits);
+    const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 3 500 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
+    
+    const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
+    const contactUrl = `https://t.me/+${digits}`;
+    
+    const reply_markup = {
+      inline_keyboard: [[
+        { text: "✅ Подтвердить VIP", url: vipConfirmUrl },
+        { text: "📞 Связаться", url: contactUrl }
+      ]]
+    };
+    
+    const targets = [
+      { token: import.meta.env.VITE_TG_BOT_TOKEN, chatId: import.meta.env.VITE_TG_CHAT_ID },
+      { token: import.meta.env.VITE_TG_BOT_TOKEN2, chatId: import.meta.env.VITE_TG_CHAT_ID2 }
+    ];
+    
+    for (const { token, chatId } of targets) {
+      if (!token || !chatId) continue;
+      try {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown', reply_markup })
+        });
+      } catch (err) { 
+        console.error("Ошибка отправки в TG:", err); 
+      }
+    }
+    return true;
+  };
+
+  const handlePaidNotification = async () => {
+    if (sent) return;
+    setLoading(true);
+    try {
+      const notified = await sendPaymentNotification();
+      
+      if (notified) {
+        setSent(true);
+        // Как и в профиле, сразу активируем VIP
+        await activateVipDirectly();
+        alert("Заявка отправлена администратору! Ваш статус обновляется.");
+        
+        // Автоматически возвращаем в профиль через 2 секунды
+        setTimeout(() => setView('profile'), 2000);
+      } else {
+        alert("Не удалось отправить уведомление. Попробуйте позже.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Произошла ошибка. Проверьте интернет-соединение.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const kaspiLink = import.meta.env.VITE_KASPI_LINK || "https://kaspi.kz/";
 
   return (
     <div className="pt-10 space-y-8 animate-in fade-in zoom-in duration-500">
@@ -78,6 +137,7 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
             {[
               "Полный доступ к каталогу номеров",
               "Просмотр скрытых контактов",
+              "Уведомления о новых лотах",
               "Персональный менеджер"
             ].map((text, i) => (
               <div key={i} className="flex items-center gap-3 text-sm font-bold text-gray-700">
@@ -94,7 +154,7 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
               fullWidth 
               size="lg" 
               className="py-6 text-lg shadow-xl shadow-[#D4AF37]/20" 
-              onClick={() => window.open(KASPI_PAY_LINK, '_blank')}
+              onClick={() => window.open(kaspiLink, '_blank')}
             >
               <ExternalLink size={20} className="mr-2" /> Оплатить подписку
             </Button>
@@ -124,7 +184,7 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
 
       <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
         <p className="text-[10px] text-gray-400 text-center font-bold uppercase leading-relaxed px-4">
-          Подписка активируется на 30 календарных дней с момента подтверждения платежа.
+          Ожидайте проверки после оплаты. Администратор активирует ваш VIP статус.
         </p>
       </div>
 
