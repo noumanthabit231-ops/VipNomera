@@ -78,7 +78,6 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
             {[
               "Полный доступ к каталогу номеров",
               "Просмотр скрытых контактов",
-              "Уведомления о новых лотах",
               "Персональный менеджер"
             ].map((text, i) => (
               <div key={i} className="flex items-center gap-3 text-sm font-bold text-gray-700">
