@@ -30,7 +30,6 @@ export default function App() {
     setTimeout(() => setToast(null), 5000); 
   };
 
-  // 🌟 СТРОГАЯ ПРОВЕРКА ДЛЯ ШТОРКИ 🌟
   const hasAccess = useMemo(() => {
     if (!user) return false;
     if (user.role === 'ADMIN') return true;
@@ -148,7 +147,8 @@ export default function App() {
             {view === 'order' && <OrderNumberView user={user} setView={setView} />}
             {view === 'admin' && user?.role === 'ADMIN' && <AdminView {...state} setView={setView} isLight={isLight} />}
             {view === 'profile' && <ProfileView user={user} setView={setView} setUser={setUser} isLight={isLight} />}
-            {view === 'subscription' && <SubscriptionView setView={setView} user={user} />}
+            {/* 🌟 ДОБАВЛЕН onNotify 🌟 */}
+            {view === 'subscription' && <SubscriptionView setView={setView} user={user} onNotify={state.onNotify} />}
           </motion.div>
         </AnimatePresence>
       </main>
