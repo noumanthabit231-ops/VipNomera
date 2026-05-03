@@ -32,26 +32,6 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
         setLoading(false);
         return;
       }
-
-      // 2. 🌟 ЖЕЛЕЗОБЕТОННАЯ ОТПРАВКА В TELEGRAM 🌟
-      // ВАРИАНТ А: Если у тебя вебхук (n8n, Make и т.д.)
-      const WEBHOOK_URL = "ТВОЯ_ССЫЛКА_WEBHOOK_ИЗ_N8N"; 
-      
-      // Раскомментируй этот блок, если используешь Webhook
-      /*
-      await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: cleanPhone,
-          name: clientName,
-          type: 'VIP_SUBSCRIPTION',
-          amount: 3500
-        })
-      });
-      */
-
-      // ВАРИАНТ Б: Если отправляешь напрямую через бота
       const BOT_TOKEN = "ТВОЙ_ТОКЕН_БОТА";
       const CHAT_ID = "ТВОЙ_CHAT_ID";
       
@@ -66,8 +46,7 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
           parse_mode: 'Markdown'
         })
       });
-      */
-
+      
       setSent(true);
       alert("Заявка отправлена администратору! Доступ будет активирован после проверки оплаты.");
     } catch (error) {
