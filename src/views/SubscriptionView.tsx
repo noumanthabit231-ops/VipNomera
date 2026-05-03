@@ -3,10 +3,11 @@ import { Crown, CheckCircle2, ExternalLink, MessageSquare, Calendar, Loader2 } f
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../cn';
+import { supabase } from '../supabase';
 
 const KASPI_PAY_LINK = "https://pay.kaspi.kz/pay/nlgccild";
 
-export const SubscriptionView = ({ setView, user, onNotify }: any) => {
+export const SubscriptionView = ({ setView, user }: any) => {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -14,12 +15,21 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
     if (sent) return;
     setLoading(true);
     try {
-      const success = await onNotify();
-      if (success) {
+      const cleanPhone = user?.phone?.replace(/\D/g, '') || '';
+      
+      const { error } = await supabase.from('custom_orders').insert([{
+        user_phone: cleanPhone,
+        user_name: user?.full_name || user?.name || 'Клиент',
+        desired_number: '🔥 ОПЛАТА VIP ПОДПИСКИ (Kaspi) 🔥',
+        budget: 3500,
+        status: 'NEW'
+      }]);
+
+      if (!error) {
         setSent(true);
         alert("Заявка отправлена администратору! Доступ будет активирован после проверки оплаты.");
       } else {
-        alert("Ошибка при отправке уведомления. Попробуйте еще раз или напишите в поддержку.");
+        alert("Ошибка базы данных: " + error.message);
       }
     } catch (error) {
       console.error(error);
