@@ -16,26 +16,57 @@ export const SubscriptionView = ({ setView, user, onNotify }: any) => {
     setLoading(true);
     try {
       const cleanPhone = user?.phone?.replace(/\D/g, '') || '';
+      const clientName = user?.full_name || user?.name || 'Клиент';
       
-      // 1. Сохраняем в Supabase
+      // 1. Сохраняем в Supabase (для админки на сайте)
       const { error } = await supabase.from('custom_orders').insert([{
         user_phone: cleanPhone,
-        user_name: user?.full_name || user?.name || 'Клиент',
+        user_name: clientName,
         desired_number: '🔥 ОПЛАТА VIP ПОДПИСКИ (Kaspi) 🔥',
         budget: 3500,
         status: 'NEW'
       }]);
 
       if (error) {
-        alert("Ошибка БД: " + error.message + " (Вам нужно выполнить SQL запрос в Supabase для разрешения записи)");
+        alert("Ошибка БД: " + error.message);
         setLoading(false);
         return;
       }
 
-      // 2. Отправляем в Telegram
-      if (typeof onNotify === 'function') {
-        await onNotify();
-      }
+      // 2. 🌟 ЖЕЛЕЗОБЕТОННАЯ ОТПРАВКА В TELEGRAM 🌟
+      // ВАРИАНТ А: Если у тебя вебхук (n8n, Make и т.д.)
+      const WEBHOOK_URL = "ТВОЯ_ССЫЛКА_WEBHOOK_ИЗ_N8N"; 
+      
+      // Раскомментируй этот блок, если используешь Webhook
+      /*
+      await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: cleanPhone,
+          name: clientName,
+          type: 'VIP_SUBSCRIPTION',
+          amount: 3500
+        })
+      });
+      */
+
+      // ВАРИАНТ Б: Если отправляешь напрямую через бота
+      const BOT_TOKEN = "ТВОЙ_ТОКЕН_БОТА";
+      const CHAT_ID = "ТВОЙ_CHAT_ID";
+      
+      const message = `🔥 *НОВАЯ ОПЛАТА VIP* 🔥\n\n👤 Клиент: ${clientName}\n📞 Телефон: +${cleanPhone}\n💰 Сумма: 3500 ₸`;
+
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          text: message,
+          parse_mode: 'Markdown'
+        })
+      });
+      */
 
       setSent(true);
       alert("Заявка отправлена администратору! Доступ будет активирован после проверки оплаты.");
