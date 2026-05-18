@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, X, Edit2, Save, 
   MessageSquare, Send, CheckCircle2, Inbox,
-  Users, Shield, ShieldOff, UserX
+  Users, Shield, ShieldOff, UserX, Search, Filter
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { cn } from '../cn';
@@ -52,6 +52,10 @@ export const AdminView = ({
   const [clients, setClients] = useState<any[]>([]);
   const [newLabelText, setNewLabelText] = useState('');
   const [newLabelColor, setNewLabelColor] = useState('#D4AF37');
+
+  // Новые состояния для поиска и фильтрации клиентов
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientFilter, setClientFilter] = useState<'all' | 'vip' | 'regular'>('all');
 
   const fetchOrders = async () => {
     const { data } = await supabase
@@ -114,14 +118,11 @@ export const AdminView = ({
     else alert("Ошибка при снятии VIP: " + error.message);
   };
 
-  // 🌟 ИСПРАВЛЕНО: УДАЛЕНИЕ КЛИЕНТА ЧЕРЕЗ RPC 🌟
   const handleDeleteClient = async (clientId: string) => {
     if (!confirm('Вы уверены, что хотите полностью удалить этого клиента?')) return;
 
-    // Берем твой номер как "пароль". Если user пустой — жестко подставляем твой номер
     const myPasswordPhone = user?.phone ? user.phone.replace(/\D/g, '') : '77077977767';
 
-    // Отправляем команду: "Удали клиента clientId, операцию подтверждает админ myPasswordPhone"
     const { error } = await supabase.rpc('delete_client_secure', {
       target_id: clientId,
       admin_phone: myPasswordPhone
@@ -130,7 +131,7 @@ export const AdminView = ({
     if (error) {
       alert("Ошибка БД: " + error.message);
     } else {
-      fetchClients(); // Обновляем список, клиент исчезнет
+      fetchClients();
     }
   };
 
@@ -188,6 +189,25 @@ export const AdminView = ({
     if (isEditing) setEditSl(prev => prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]);
     else setSl(prev => prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]);
   };
+
+  // Фильтрация и поиск клиентов
+  const filteredClients = clients.filter(c => {
+    const searchLower = clientSearch.toLowerCase();
+    const matchesSearch = !clientSearch || 
+      (c.name && c.name.toLowerCase().includes(searchLower)) ||
+      (c.phone && c.phone.includes(clientSearch.replace(/\D/g, '')));
+    
+    if (clientFilter === 'vip') {
+      return matchesSearch && c.subscription === 'ACTIVE' && new Date(c.expiry_date) > new Date();
+    }
+    if (clientFilter === 'regular') {
+      return matchesSearch && (c.subscription !== 'ACTIVE' || new Date(c.expiry_date) <= new Date());
+    }
+    return matchesSearch;
+  });
+
+  const vipCount = clients.filter(c => c.subscription === 'ACTIVE' && new Date(c.expiry_date) > new Date()).length;
+  const regularCount = clients.filter(c => c.subscription !== 'ACTIVE' || new Date(c.expiry_date) <= new Date()).length;
 
   const inputClass = "w-full bg-[#1A1A1A] border-2 border-gray-800 rounded-2xl p-4 text-white font-bold outline-none focus:border-[#D4AF37]/50 transition-all placeholder:text-gray-600";
 
@@ -352,17 +372,81 @@ export const AdminView = ({
           </div>
         )}
 
-        {/* 🌟 ВКЛАДКА: КЛИЕНТЫ 🌟 */}
+        {/* 🌟 ВКЛАДКА: КЛИЕНТЫ (ОБНОВЛЕННАЯ) 🌟 */}
         {tab === 'clients' && (
           <div className="space-y-4">
-            {clients.length === 0 && (
+            {/* Поиск и фильтры */}
+            <div className="bg-[#111] p-4 rounded-[2rem] border border-gray-800 space-y-3">
+              {/* Поисковая строка */}
+              <div className="relative">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
+                <input
+                  type="text"
+                  placeholder="Поиск по имени или номеру..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  className={cn(inputClass, "pl-12")}
+                />
+                {clientSearch && (
+                  <button
+                    onClick={() => setClientSearch('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors"
+                  >
+                    <X size={14} className="text-gray-400" />
+                  </button>
+                )}
+              </div>
+
+              {/* Фильтры */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setClientFilter('all')}
+                  className={cn(
+                    "flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                    clientFilter === 'all' 
+                      ? "bg-[#D4AF37] text-black border-[#D4AF37]" 
+                      : "bg-[#1A1A1A] text-gray-500 border-gray-800 hover:border-gray-600"
+                  )}
+                >
+                  <Users size={14} className="inline mr-1" />
+                  Все ({clients.length})
+                </button>
+                <button
+                  onClick={() => setClientFilter('vip')}
+                  className={cn(
+                    "flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                    clientFilter === 'vip' 
+                      ? "bg-[#D4AF37] text-black border-[#D4AF37]" 
+                      : "bg-[#1A1A1A] text-gray-500 border-gray-800 hover:border-gray-600"
+                  )}
+                >
+                  <Shield size={14} className="inline mr-1" />
+                  VIP ({vipCount})
+                </button>
+                <button
+                  onClick={() => setClientFilter('regular')}
+                  className={cn(
+                    "flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                    clientFilter === 'regular' 
+                      ? "bg-[#D4AF37] text-black border-[#D4AF37]" 
+                      : "bg-[#1A1A1A] text-gray-500 border-gray-800 hover:border-gray-600"
+                  )}
+                >
+                  <Filter size={14} className="inline mr-1" />
+                  Обычные ({regularCount})
+                </button>
+              </div>
+            </div>
+
+            {/* Список клиентов */}
+            {filteredClients.length === 0 && (
               <div className="text-center p-16 text-gray-700 font-black uppercase tracking-widest border-2 border-dashed border-gray-900 rounded-[2.5rem]">
                 <Users size={40} className="mx-auto mb-4 opacity-20" />
-                Нет клиентов
+                {clientSearch ? 'Ничего не найдено' : clientFilter === 'vip' ? 'Нет VIP клиентов' : clientFilter === 'regular' ? 'Нет обычных клиентов' : 'Нет клиентов'}
               </div>
             )}
 
-            {clients.map(c => {
+            {filteredClients.map(c => {
               const isVIP = c.subscription === 'ACTIVE';
               const hasExpiry = !!c.expiry_date;
               const isExpired = hasExpiry && new Date(c.expiry_date) < new Date();
@@ -371,25 +455,42 @@ export const AdminView = ({
               let statusText = 'Обычный';
               let statusColor = "bg-[#1A1A1A] text-gray-500 border-gray-800";
               let badgeColor = "bg-gray-700";
+              let cardBorder = "border-gray-800";
 
               if (isVIP && !isExpired) {
                 statusText = 'VIP Активен';
                 statusColor = "bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/30";
                 badgeColor = "bg-[#D4AF37]";
+                cardBorder = "border-[#D4AF37]/30 shadow-[#D4AF37]/5";
               } else if (isExpired) {
                 statusText = 'ПРОСРОЧЕН';
                 statusColor = "bg-red-500/10 text-red-500 border-red-500/30";
                 badgeColor = "bg-red-500";
+                cardBorder = "border-red-500/20 shadow-red-500/5";
               }
 
+              // Подсветка совпадений при поиске
+              const highlightMatch = (text: string) => {
+                if (!clientSearch || !text) return text;
+                const regex = new RegExp(`(${clientSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                const parts = text.split(regex);
+                return parts.map((part, i) => 
+                  regex.test(part) ? <span key={i} className="bg-[#D4AF37]/20 text-[#D4AF37] px-0.5 rounded">{part}</span> : part
+                );
+              };
+
               return (
-                <div key={c.id} className={cn("p-5 bg-[#111] rounded-[1.5rem] border shadow-lg relative overflow-hidden", isExpired ? "border-red-500/20 shadow-red-500/5" : "border-gray-800")}>
+                <div key={c.id} className={cn("p-5 bg-[#111] rounded-[1.5rem] border shadow-lg relative overflow-hidden", cardBorder)}>
                   <div className={cn("absolute top-0 left-0 w-1 h-full", badgeColor)} />
                   
                   <div className="flex justify-between items-start mb-4 pl-2">
                     <div>
-                      <h3 className="text-xl font-black text-white italic tracking-tighter">{c.name || 'Аноним'}</h3>
-                      <p className="text-[#D4AF37] font-bold text-sm tracking-widest uppercase mt-1">+{c.phone}</p>
+                      <h3 className="text-xl font-black text-white italic tracking-tighter">
+                        {highlightMatch(c.name || 'Аноним')}
+                      </h3>
+                      <p className="text-[#D4AF37] font-bold text-sm tracking-widest uppercase mt-1">
+                        +{highlightMatch(c.phone)}
+                      </p>
                       
                       {hasExpiry && daysInfo && (
                         <div className="mt-3">
@@ -412,7 +513,7 @@ export const AdminView = ({
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 mt-4 pl-2">
-                    {isVIP || isExpired ? (
+                    {isVIP && !isExpired ? (
                       <button 
                         onClick={() => handleRevokeVIP(c.id)}
                         className="flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl text-[10px] font-black uppercase hover:bg-red-500/20 transition-all"
