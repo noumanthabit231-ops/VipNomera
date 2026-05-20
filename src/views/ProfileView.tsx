@@ -99,7 +99,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     const digits = getPhoneDigits();
     if (!digits) return false;
     const text = `🔔 *Новая заявка на VIP*\n👤 Клиент: ${user?.full_name || 'Аноним'}\n📱 Телефон: ${displayPhone}\n💰 Сумма: 3 500 ₸\n📅 Дата: ${new Date().toLocaleString()}`;
-    const vipConfirmUrl = `https://inlksftwkjuiulmrhyso.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
+    const vipConfirmUrl = `https://adqhatadlrzmtufndpau.supabase.co/functions/v1/confirm-vip?confirm=${digits}`;
     const contactUrl = `https://t.me/+${digits}`;
     const reply_markup = {
       inline_keyboard: [[
