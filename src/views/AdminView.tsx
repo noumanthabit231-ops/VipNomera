@@ -121,7 +121,13 @@ export const AdminView = ({
   const handleDeleteClient = async (clientId: string) => {
     if (!confirm('Вы уверены, что хотите полностью удалить этого клиента?')) return;
 
-    const myPasswordPhone = user?.phone ? user.phone.replace(/\D/g, '') : '77077977767';
+    // ✅ Строгая проверка: если номера нет в стейте, не даем делать запрос и просим перезайти
+    if (!user || !user.phone) {
+      alert("Ошибка: Не удалось определить ваш номер (сессия устарела). Пожалуйста, перезайдите в профиль.");
+      return;
+    }
+
+    const myPasswordPhone = user.phone.replace(/\D/g, '');
 
     const { error } = await supabase.rpc('delete_client_secure', {
       target_id: clientId,
