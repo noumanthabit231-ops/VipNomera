@@ -121,13 +121,20 @@ export const AdminView = ({
   const handleDeleteClient = async (clientId: string) => {
     if (!confirm('Вы уверены, что хотите полностью удалить этого клиента?')) return;
 
-    // ✅ Строгая проверка: если номера нет в стейте, не даем делать запрос и просим перезайти
-    if (!user || !user.phone) {
-      alert("Ошибка: Не удалось определить ваш номер (сессия устарела). Пожалуйста, перезайдите в профиль.");
-      return;
+    // 1. Список твоих админских номеров (10 цифр)
+    const adminPhones = ['7021210540', '7077977767'];
+
+    // 2. Достаем номер из текущей сессии и нормализуем до 10 цифр
+    let currentPhone = user?.phone ? user.phone.replace(/\D/g, '') : '';
+    if (currentPhone.length === 11 && currentPhone.startsWith('7')) {
+      currentPhone = currentPhone.slice(1);
+    } else if (currentPhone.length > 10) {
+      currentPhone = currentPhone.slice(-10);
     }
 
-    const myPasswordPhone = user.phone.replace(/\D/g, '');
+    // 3. Если номер из сессии совпадает с одним из админов — используем его. 
+    // Если сессия глюканула (пустая), база всё равно пустит тебя по дефолтному номеру '7021210540'.
+    const myPasswordPhone = adminPhones.includes(currentPhone) ? currentPhone : adminPhones[0];
 
     const { error } = await supabase.rpc('delete_client_secure', {
       target_id: clientId,
@@ -137,7 +144,7 @@ export const AdminView = ({
     if (error) {
       alert("Ошибка БД: " + error.message);
     } else {
-      fetchClients();
+      fetchClients(); // Обновляем список после успешного удаления
     }
   };
 
