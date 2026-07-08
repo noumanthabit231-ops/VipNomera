@@ -19,7 +19,7 @@ import { cn } from './cn';
 export default function App() {
   const { 
     view, setView, user, setUser, selectedPhone, setSelectedPhone, 
-    isLoading, userOrders, createOrder, isLight, toggleTheme, ...state 
+    isLoading, userOrders, createOrder, isLight, toggleTheme, now, ...state 
   } = useGoldenApp() as any;
 
   const [isOrderSending, setIsOrderSending] = useState(false);
@@ -36,7 +36,8 @@ export default function App() {
     const isActive = user.subscription === 'ACTIVE';
     const isNotExpired = !user.expiry_date || new Date(user.expiry_date) > new Date();
     return isActive && isNotExpired;
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, now]); // now — тикер: закрывает доступ по истечении даже без новых данных с сервера
 
   const handleSelectPhoneWrapper = async (phone: any) => {
     if (phone.status === 'SOLD') {
@@ -146,9 +147,8 @@ export default function App() {
 
             {view === 'order' && <OrderNumberView user={user} setView={setView} />}
             {view === 'admin' && user?.role === 'ADMIN' && <AdminView {...state} setView={setView} isLight={isLight} />}
-            {view === 'profile' && <ProfileView user={user} setView={setView} setUser={setUser} isLight={isLight} />}
-            {/* 🌟 ДОБАВЛЕН onNotify 🌟 */}
-            {view === 'subscription' && <SubscriptionView setView={setView} user={user} onNotify={state.onNotify} />}
+            {view === 'profile' && <ProfileView user={user} setView={setView} setUser={setUser} isLight={isLight} refreshUserData={state.refreshUserData} />}
+            {view === 'subscription' && <SubscriptionView setView={setView} user={user} onNotify={state.onNotify} refreshUserData={state.refreshUserData} />}
           </motion.div>
         </AnimatePresence>
       </main>

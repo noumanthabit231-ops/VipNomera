@@ -3,7 +3,6 @@ import { Crown, CheckCircle2, ExternalLink, MessageSquare, Calendar, Loader2 } f
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../cn';
-import { supabase } from '../supabase';
 
 const normalizePhone = (phone: string): string => {
   let digits = phone?.replace(/\D/g, '') || '';
@@ -18,7 +17,7 @@ const formatDisplay = (phoneDigits: string): string => {
   return `+7 ${d.slice(0,3)} ${d.slice(3,6)} ${d.slice(6,8)} ${d.slice(8,10)}`;
 };
 
-export const SubscriptionView = ({ setView, user }: any) => {
+export const SubscriptionView = ({ setView, user, refreshUserData }: any) => {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -27,20 +26,11 @@ export const SubscriptionView = ({ setView, user }: any) => {
     return normalizePhone(user.phone);
   };
 
-  const activateVipDirectly = async () => {
-    const digits = getPhoneDigits();
-    if (!digits) return false;
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30);
-    
-    const { error } = await supabase
-      .from('auth_codes')
-      .update({ subscription: 'ACTIVE', expiry_date: expiryDate.toISOString() })
-      .eq('phone', digits)
-      .eq('is_verified', true);
-      
-    return !error;
-  };
+  // ВАЖНО: клиент НЕ имеет права сам себе выдавать VIP. Единственный, кто
+  // ставит subscription = ACTIVE — это Боб, кликом по кнопке "✅ Подтвердить VIP"
+  // в Telegram (см. Edge Function confirm-vip). Раньше здесь был activateVipDirectly(),
+  // который активировал доступ сразу по клику "Я оплатил" — это и была причина,
+  // почему клиент видел номера до подтверждения оплаты. Убрано намеренно.
 
   const sendPaymentNotification = async () => {
     const digits = getPhoneDigits();
@@ -87,9 +77,10 @@ export const SubscriptionView = ({ setView, user }: any) => {
       
       if (notified) {
         setSent(true);
-        // Как и в профиле, сразу активируем VIP
-        await activateVipDirectly();
-        alert("Заявка отправлена администратору! Ваш статус обновляется.");
+        // На всякий случай сразу дёргаем ресинк — если Боб успел подтвердить
+        // мгновенно, статус подхватится без ожидания следующего опроса.
+        await refreshUserData?.();
+        alert("Заявка отправлена администратору! Доступ откроется автоматически, как только оплата будет подтверждена.");
         
         // Автоматически возвращаем в профиль через 2 секунды
         setTimeout(() => setView('profile'), 2000);

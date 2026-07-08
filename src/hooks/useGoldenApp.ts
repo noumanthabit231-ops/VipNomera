@@ -85,9 +85,13 @@ export const useGoldenApp = () => {
     if (data) setUserOrders(data);
   }, [user?.phone]);
 
+  // Источник правды по статусу подписки — ТОЛЬКО сервер (auth_codes).
+  // Зависим от user?.phone, а не от всего объекта user — иначе каждое
+  // обновление user пересоздавало бы колбэк и рвало интервал ниже.
   const refreshUserData = useCallback(async () => {
-    if (!user?.phone) return;
-    const cleanPhone = user.phone.replace(/\D/g, '');
+    const phone = user?.phone;
+    if (!phone) return;
+    const cleanPhone = phone.replace(/\D/g, '');
     const { data } = await supabase
       .from('auth_codes')
       .select('role, subscription, expiry_date, name, tg_user_id')
@@ -99,12 +103,39 @@ export const useGoldenApp = () => {
     if (data) {
       let currentSub = data.subscription || 'INACTIVE';
       if (data.role === 'ADMIN') currentSub = 'ACTIVE';
-      const updatedUser = { ...user, full_name: data.name, role: data.role || 'USER', subscription: currentSub, expiry_date: data.expiry_date };
-      if (JSON.stringify(user) !== JSON.stringify(updatedUser)) {
-        setUser(updatedUser);
-      }
+      setUser(prev => {
+        if (!prev) return prev;
+        const updated = { ...prev, full_name: data.name ?? prev.full_name, role: data.role || 'USER', subscription: currentSub, expiry_date: data.expiry_date };
+        return JSON.stringify(prev) !== JSON.stringify(updated) ? updated : prev;
+      });
     }
-  }, [user]);
+  }, [user?.phone]);
+
+  // Живой доступ: пока Боб не подтвердит оплату — subscription в базе остаётся
+  // не ACTIVE, и это окно само подхватит статус, где бы пользователь ни находился
+  // (не только на вкладке "Кабинет"). Плюс мгновенный ресинк при возврате в приложение —
+  // человек обычно уходит в Telegram/WhatsApp и возвращается, ловим этот момент.
+  useEffect(() => {
+    if (!user?.phone) return;
+    refreshUserData();
+    const interval = setInterval(refreshUserData, 8000);
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshUserData(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [user?.phone, refreshUserData]);
+
+  // Тикер для мгновенного "закрытия" каталога по дате истечения подписки,
+  // даже если данные на сервере не менялись (защита работает без сетевого события).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 20000);
+    return () => clearInterval(tick);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   
@@ -136,7 +167,7 @@ export const useGoldenApp = () => {
   return {
     isLoading, view, setView, user, setUser, phones, labels, searchQuery, setSearchQuery,
     activeLabelFilter, setActiveLabelFilter, filteredPhones, selectedPhone, setSelectedPhone,
-    userOrders, fetchData, refreshUserData, createOrder,
+    userOrders, fetchData, refreshUserData, createOrder, now,
     pn, setPn, pr, setPr, st, setSt, sl, setSl,
     isLight, toggleTheme
   };

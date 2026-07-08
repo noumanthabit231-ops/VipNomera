@@ -5,7 +5,6 @@ import {
   Settings, User as UserIcon, ChevronDown, CreditCard, MessageCircle
 } from 'lucide-react';
 import { cn } from '../cn';
-import { supabase } from '../supabase';
 
 const normalizePhone = (phone: string): string => {
   let digits = phone.replace(/\D/g, '');
@@ -37,63 +36,28 @@ const getDaysDiff = (expiryStr: string) => {
   return { count: Math.abs(diffDays), word: getWord(Math.abs(diffDays)), isExpired: diffDays < 0 };
 };
 
-export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
+export const ProfileView = ({ user, setView, setUser, isLight, refreshUserData }: any) => {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
-  const [localVIP, setLocalVIP] = useState(user?.subscription === 'ACTIVE');
-  const [daysLeft, setDaysLeft] = useState(null);
 
   const getPhoneDigits = (): string => {
     if (!user?.phone) return '';
     return normalizePhone(user.phone);
   };
 
-  const refreshUserStatus = async () => {
-    const digits = getPhoneDigits();
-    if (!digits) return;
-    const { data, error } = await supabase
-      .from('auth_codes')
-      .select('subscription, expiry_date, role')
-      .eq('phone', digits)
-      .eq('is_verified', true)
-      .maybeSingle();
-    if (data && !error) {
-      const isActive = data.subscription === 'ACTIVE' && (!data.expiry_date || new Date(data.expiry_date) > new Date());
-      setLocalVIP(isActive);
-      if (data.expiry_date) setDaysLeft(getDaysDiff(data.expiry_date));
-      if (data.subscription !== user.subscription || data.expiry_date !== user.expiry_date) {
-        setUser({ ...user, subscription: data.subscription, expiry_date: data.expiry_date });
-      }
-    }
-  };
-
-  useEffect(() => {
-    refreshUserStatus();
-    const interval = setInterval(refreshUserStatus, 10000);
-    return () => clearInterval(interval);
-  }, [user?.phone]);
-
+  // Единственный источник правды — user, который живёт в App.tsx и обновляется
+  // глобальным опросом (см. useGoldenApp: refreshUserData каждые 8с + при
+  // возврате в приложение). Здесь просто читаем, ничего сами не пишем в базу.
   const isAdmin = user?.role === 'ADMIN';
-  const isVIP = localVIP || isAdmin;
+  const isSubActive = user?.subscription === 'ACTIVE' && (!user?.expiry_date || new Date(user.expiry_date) > new Date());
+  const isVIP = isSubActive || isAdmin;
+  const daysLeft = user?.expiry_date ? getDaysDiff(user.expiry_date) : null;
   const displayPhone = formatDisplay(getPhoneDigits());
 
-  const activateVipDirectly = async () => {
-    const digits = getPhoneDigits();
-    if (!digits) return false;
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30);
-    const { error } = await supabase
-      .from('auth_codes')
-      .update({ subscription: 'ACTIVE', expiry_date: expiryDate.toISOString() })
-      .eq('phone', digits)
-      .eq('is_verified', true);
-    if (!error) {
-      await refreshUserStatus();
-      return true;
-    }
-    return false;
-  };
+  // Мгновенный ресинк при заходе в кабинет — не обязателен (глобальный опрос
+  // и так подхватит в течение 8с), но так статус на экране свежий сразу.
+  useEffect(() => { refreshUserData?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendPaymentNotification = async () => {
     const digits = getPhoneDigits();
@@ -130,8 +94,10 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
     if (notified) {
       setIsSent(true);
       setTimeout(() => setIsSent(false), 3500);
-      // Автоматическая активация (можно убрать, если хотите только уведомление)
-      await activateVipDirectly();
+      // VIP выдаёт только Боб подтверждением в Telegram. Дёргаем ресинк на
+      // случай, если он успел подтвердить мгновенно — иначе статус подхватится
+      // сам в течение 8 секунд глобальным опросом.
+      await refreshUserData?.();
     } else {
       alert("Не удалось отправить уведомление. Попробуйте позже.");
     }
@@ -265,7 +231,7 @@ export const ProfileView = ({ user, setView, setUser, isLight }: any) => {
         )}
       </div>
 
-      <button onClick={refreshUserStatus} className="w-full flex items-center justify-center gap-2 py-3 mt-2 bg-gray-500/20 rounded-xl text-[11px] font-black uppercase transition-all hover:bg-gray-500/30">
+      <button onClick={() => refreshUserData?.()} className="w-full flex items-center justify-center gap-2 py-3 mt-2 bg-gray-500/20 rounded-xl text-[11px] font-black uppercase transition-all hover:bg-gray-500/30">
         🔄 Обновить статус VIP
       </button>
       <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-4 mt-2 text-gray-500 hover:text-red-500 transition-colors font-bold text-xs uppercase tracking-widest">
